@@ -4,6 +4,8 @@ import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Button, Modal, StyleSheet, Text, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
+import { SafeAreaView } from 'react-native-safe-area-context';
+
 
 
 // Type for daily log
@@ -82,7 +84,7 @@ export default function HistoryScreen() {
     }
 
     return (
-        <View style={styles.container}>
+        <SafeAreaView style={styles.container}>
             <Text style={styles.title}>History</Text>
 
             <Calendar
@@ -122,7 +124,7 @@ export default function HistoryScreen() {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </SafeAreaView>
     );
 }
 
