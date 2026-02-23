@@ -1,6 +1,7 @@
 import { auth, db } from '@/firebase/config';
 import { format } from 'date-fns';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { useLocalSearchParams, useRouter } from 'expo-router';
+import { collection, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Button, Modal, StyleSheet, Text, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
@@ -18,41 +19,44 @@ type DailyLog = {
 
 //
 export default function HistoryScreen() {
+    const router = useRouter();
+    const { date } = useLocalSearchParams();
     const [markedDates, setMarkedDates] = useState<any>({});
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [log, setLog] = useState<DailyLog | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const loadMarkedDates = async () => {
-            const user = auth.currentUser;
-            if (!user) return;
+    const loadMarkedDates = async () => {
+        const user = auth.currentUser;
+        if (!user) return;
 
-            const logsRef = collection(db, 'users', user.uid, 'dailyLogs');
-            const snapshot = await getDocs(logsRef);
+        const logsRef = collection(db, 'users', user.uid, 'dailyLogs');
+        const snapshot = await getDocs(logsRef);
 
-            const marked: any = {};
+        const marked: any = {};
 
-            snapshot.docs.forEach((doc) => {
-                marked[doc.id] = {
-                    marked: true,
-                    dotColor: "#f06292",
-                };
-            });
-
-            const today = format(new Date(), 'yyyy-MM-dd');
-            marked[today] = {
-                ...(marked[today] || {}),
-                selected: true,
-                selectedColor: "#ba68c8",
+        snapshot.docs.forEach((doc) => {
+            marked[doc.id] = {
+                marked: true,
+                dotColor: "#f06292",
             };
+        });
 
-            setMarkedDates(marked);
-            setLoading(false);
-
+        const today = format(new Date(), 'yyyy-MM-dd');
+        marked[today] = {
+            ...(marked[today] || {}),
+            selected: true,
+            selectedColor: "#ba68c8",
         };
 
+        setMarkedDates(marked);
+        setLoading(false);
+        setSelectedDate(null);
+
+    };
+
+    useEffect(() => {
         loadMarkedDates();
     }, []);
 
@@ -74,6 +78,31 @@ export default function HistoryScreen() {
 
         setModalVisible(true);
     };
+
+    const handleDeleteLog = async () => {
+        if (!selectedDate) return;
+        const user = auth.currentUser;
+        if (!user) return;
+
+        await deleteDoc(doc(db, 'users', user.uid, 'dailyLogs', selectedDate));
+
+        setLog(null);
+        setModalVisible(false);
+
+        // Refresh marked dates
+        await loadMarkedDates();
+        setSelectedDate(null);
+    };
+
+   
+    useEffect(() => {
+        if (date) {
+            setSelectedDate(date as string);
+        }
+    }, [date]);
+    
+    
+
 
     if (loading) {
         return (
@@ -109,8 +138,17 @@ export default function HistoryScreen() {
                                     {log.symptoms.length > 0 ? log.symptoms.join(", ") : "None"}
                                 </Text>
 
-                                <Button title="Edit Log" onPress={() => {}} />
-                                <Button title="Delete Log" onPress={() => {}} color="red" />
+                                <Button 
+                                    title="Edit Log" 
+                                    onPress={() => {
+                                        setModalVisible(false);
+                                        router.push({
+                                            pathname: "/(tabs)",
+                                            params: { date: selectedDate },
+                                        });
+                                    }}
+                                />
+                                <Button title="Delete Log" onPress={handleDeleteLog} color="red" />
                             </>
 
                         ) : (
