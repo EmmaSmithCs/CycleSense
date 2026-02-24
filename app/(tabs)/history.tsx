@@ -3,7 +3,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Button, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -29,6 +29,21 @@ export default function HistoryScreen() {
     const [bleeding, setBleeding] = useState<"None" | "Light" | "Medium" | "Heavy">("None");
     const [symptoms, setSymptoms] = useState<string[]>([]);
 
+    const getDotColor = (bleeding: string) => {
+        switch (bleeding) {
+            case "Heavy":
+                return "#ff1a75";
+            case "Medium":
+                return "#ff66b3";
+            case "Light":
+                return "#ff99cc";
+            case "None":
+                return "#66ccff";
+            default:
+                return "#f06292";
+        }
+    };
+
     const loadMarkedDates = async () => {
         const user = auth.currentUser;
         if (!user) return;
@@ -41,7 +56,7 @@ export default function HistoryScreen() {
         snapshot.docs.forEach((doc) => {
             marked[doc.id] = {
                 marked: true,
-                dotColor: "#f06292",
+                dotColor: getDotColor(doc.data().bleeding || "None"),
             };
         });
 
@@ -110,6 +125,8 @@ export default function HistoryScreen() {
 
         setModalVisible(false);
         await loadMarkedDates();
+
+        Alert.alert('Saved!', 'Your daily log has been saved successfully.');
     };
 
     const handleDeleteLog = async () => {
@@ -123,6 +140,8 @@ export default function HistoryScreen() {
         setModalVisible(false);
 
         await loadMarkedDates();
+
+        Alert.alert('Deleted!', 'Your daily log has been deleted successfully.');
     };
 
    
@@ -142,6 +161,7 @@ export default function HistoryScreen() {
             <Text style={styles.title}>History</Text>
 
             <Calendar
+                current ={format(new Date(), 'yyyy-MM-dd')}
                 markedDates={markedDates}
                 onDayPress={onDayPress}
                 theme={{
