@@ -2,23 +2,22 @@
 import { addDays, differenceInCalendarDays, parseISO } from "date-fns";
 
 export type DailyLog = {
-    id: string;
-    bleeding: string;
+    bleeding: "None" | "Light" | "Medium" | "Heavy";
     symptoms: string[];
-    date?: string;
+    date: string;
 };
 
 export type Cycle = {
     startDate: string; 
     endDate: string;
-    length: number;
+    cycleLength?: number;
 };
 
 export function buildCycles(logs: DailyLog[]): Cycle[] {
     if (!logs.length) return [];
 
     const sorted = [...logs].sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        (a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()
     );
 
     const cycles: Cycle[] = [];
@@ -34,22 +33,43 @@ export function buildCycles(logs: DailyLog[]): Cycle[] {
 
         if (bleedingToday && !bleedingPrev && !inCycle) {
             inCycle = true;
-            startDate = today.date;
+            startDate = today.date!;
         }
 
         if (!bleedingToday && bleedingPrev && inCycle && startDate) {
-            const length = differenceInCalendarDays(parseISO(prev.date), parseISO(startDate)) + 1;
 
             cycles.push({
                 startDate,
-                endDate: prev.date,
-                length,
+                endDate: prev.date!,
             });
 
             inCycle = false;
             startDate = null;
         }
+
+        
     
+    }
+
+    if (inCycle && startDate) {
+        cycles.push({
+            startDate,
+            endDate: sorted[sorted.length - 1].date!,
+        });
+    }
+
+    for (let i = 0; i < cycles.length; i++) {
+        if (i < cycles.length - 1) {
+            cycles[i].cycleLength = differenceInCalendarDays(
+                parseISO(cycles[i + 1].startDate),
+                parseISO(cycles[i].startDate)
+            );
+        } else {
+            cycles[i].cycleLength = differenceInCalendarDays(
+                parseISO(cycles[i].endDate),
+                parseISO(cycles[i].startDate)
+            ) + 1;
+        }
     }
 
     return cycles;
@@ -58,16 +78,30 @@ export function buildCycles(logs: DailyLog[]): Cycle[] {
 export function getAverageCycleLength(cycles: Cycle[]) {
     if (!cycles.length) return null;
 
-    const total = cycles.reduce((sum, c) => sum + c.length, 0);
-    return Math.round(total / cycles.length);
+    if (cycles.length === 1) {
+        return cycles[0].cycleLength ?? null;
+    }
+
+    const comepletedCycles = cycles.slice(0, -1);
+
+    const lengths = comepletedCycles
+        .map((c) => c.cycleLength)
+        .filter((l): l is number => typeof l === "number");
+    
+    if (!lengths.length) return null;
+
+    const total = lengths.reduce((sum, l) => sum + l, 0);
+    return Math.round(total / lengths.length);
 }
 
 export function predictNextPeriod(cycles: Cycle[]) {
-    if (cycles.length === 0) return null;
+    if (!cycles.length) return null;
 
-    const last = cycles[cycles.length - 1];
     const avg = getAverageCycleLength(cycles);
     if (!avg) return null;
+
+    const last = cycles[cycles.length - 1];
+    if (!last.startDate) return null;
 
     return addDays(parseISO(last.startDate), avg);
 }
@@ -76,13 +110,28 @@ export function getCycleProgress(cycles: Cycle[]) {
     if (!cycles.length) return null;
 
     const last = cycles[cycles.length - 1];
+    if (!last.startDate) return null;
+
     const today = new Date();
 
-    const day = differenceInCalendarDays(today, parseISO(last.startDate)) + 1;
-    const avg = getAverageCycleLength(cycles);
+    const start = parseISO(last.startDate);
+    const end = parseISO(last.endDate);
+
+    if (today > end) {
+        return {
+            cycleDay: null,
+            avgLength: getAverageCycleLength(cycles),
+            status: "between",
+        };
+    }
+
+    const cycleDay = differenceInCalendarDays(today, start) + 1;
 
     return {
-        cycleDay: day,
-        avgLength: avg,
-    }
+        cycleDay: cycleDay,
+        avgLength: getAverageCycleLength(cycles),
+        status: "in_cycle",
+    };
+
 }
+

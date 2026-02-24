@@ -1,8 +1,8 @@
-import CycleProgressRing from '@/components/CycleProgressRing';
 import { auth } from '@/firebase/config';
 import { addDays, format } from 'date-fns';
+import { useFocusEffect } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { db } from '../../firebase/config';
 import { saveDailyLog } from '../../firebase/dailyLogs';
@@ -96,9 +96,11 @@ export default function DailyTrackingScreen() {
     setLoadingCycleData(false);
   };
 
-  useEffect(() => {
-    fetchCycleData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchCycleData();
+    }, [])
+  );
   
 
 
@@ -110,6 +112,7 @@ export default function DailyTrackingScreen() {
       symptoms,
     });
     setModalVisible(false);
+    fetchCycleData();
   };
 
   if (loading || loadingCycleData) {
@@ -158,16 +161,32 @@ export default function DailyTrackingScreen() {
       />
 
       {/* Cycle Circle */}
-      {cycleDay && avgCycleLength ? (
-        <CycleProgressRing
-          cycleDay={cycleDay}
-          avgLength={avgCycleLength}
-        />
-      ) : (
-        <Text style={{ textAlign: "center", color: "#666", marginBottom: 20 }}>
-          Log more days to see cycle progress!
-        </Text>
-      )}
+      <View style={styles.cycleCircle}>
+        {cycleDay !== null && avgCycleLength !== null ? (
+          <>
+            <Text style={styles.cycleText}>Cycle Day {cycleDay}</Text>
+            <Text style={styles.cycleDayText}>
+              {cycleDay} / {avgCycleLength}
+            </Text>
+
+            {nextPeriodDate && (
+              <Text style={styles.nextPeriodText}>
+                Next period: {format(nextPeriodDate, "dd MMM")}
+              </Text>
+            )}
+          </>
+        ) : (
+          <>
+            <Text style={styles.cycleText}>Between cycles</Text>
+
+            {nextPeriodDate && (
+              <Text style={styles.nextPeriodText}>
+                Next period: {format(nextPeriodDate, "dd MMM")}
+              </Text>
+            )}
+          </>
+        )}
+      </View>
           
 
       {/* Log Modal */}
@@ -284,6 +303,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     marginBottom: 5,
   },
+
+  
 });
 
 
