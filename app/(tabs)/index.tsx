@@ -1,9 +1,10 @@
 import { auth } from '@/firebase/config';
-import { addDays, format } from 'date-fns';
+import { addDays, differenceInCalendarDays, format } from 'date-fns';
 import { useFocusEffect } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import CycleProgressRing from '../../components/CycleProgressRing';
 import { db } from '../../firebase/config';
 import { saveDailyLog } from '../../firebase/dailyLogs';
 import { buildCycles, DailyLog, getCycleProgress, predictNextPeriod } from '../utils/cyclePrediction';
@@ -26,8 +27,8 @@ export default function DailyTrackingScreen() {
   const [nextPeriodDate, setNextPeriodDate] = useState<Date | null>(null);
   const [cycleDay, setCycleDay] = useState<number | null>(null);
   const [loadingCycleData, setLoadingCycleData] = useState(true);
-
-  
+  const [periodLength, setPeriodLength] = useState<number | null>(null);
+  const [isBleedingToday, setIsBleedingToday] = useState(false);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -70,7 +71,6 @@ export default function DailyTrackingScreen() {
   const fetchCycleData = async () => {
     const user = auth.currentUser;
     if (!user) return;
-    
 
     const logsRef = collection(db, 'users', user.uid, 'dailyLogs');
     const snapshot = await getDocs(logsRef);
@@ -86,11 +86,41 @@ export default function DailyTrackingScreen() {
     const nextPeriod = predictNextPeriod(cycles);
 
     if (cycles.length === 0) {
+      setCycleDay(null);
+      setAvgCycleLength(null);
+      setNextPeriodDate(null);
+      setPeriodLength(null);
       setLoadingCycleData(false);
       return;
     }
 
-    setCycleDay(progress?.cycleDay ?? null);
+    const today = new Date();
+    const lastCycle = cycles[cycles.length - 1];
+    const lastPeriodStart = new Date(lastCycle.startDate);
+    const dayOfCycle = differenceInCalendarDays(today, lastPeriodStart) + 1;
+
+    const periodLogs = logs
+      .filter(log => new Date(log.date) >= lastPeriodStart)
+      .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+
+    let actualPeriodLength = 0;
+    for (const log of periodLogs) {
+      if (log.bleeding !== "None") {
+        actualPeriodLength++;
+      } else {
+        break; // stop when bleeding ends
+      }
+    }
+
+setPeriodLength(actualPeriodLength);
+
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const todayLog = logs.find(l => l.date === todayStr);
+
+    setIsBleedingToday(todayLog?.bleeding !== "None");
+
+
+    setCycleDay(dayOfCycle);
     setAvgCycleLength(progress?.avgLength ?? null);
     setNextPeriodDate(nextPeriod ?? null);
     setLoadingCycleData(false);
@@ -160,34 +190,21 @@ export default function DailyTrackingScreen() {
         }}
       />
 
-      {/* Cycle Circle */}
+      {/* Cycle Progress Ring */}
       <View style={styles.cycleCircle}>
         {cycleDay !== null && avgCycleLength !== null ? (
-          <>
-            <Text style={styles.cycleText}>Cycle Day {cycleDay}</Text>
-            <Text style={styles.cycleDayText}>
-              {cycleDay} / {avgCycleLength}
-            </Text>
-
-            {nextPeriodDate && (
-              <Text style={styles.nextPeriodText}>
-                Next period: {format(nextPeriodDate, "dd MMM")}
-              </Text>
-            )}
-          </>
+          <CycleProgressRing
+            cycleDay={cycleDay}
+            avgLength={avgCycleLength}
+            periodLength={periodLength ?? 0}
+            isBleedingToday={isBleedingToday}
+          />
         ) : (
-          <>
-            <Text style={styles.cycleText}>Between cycles</Text>
-
-            {nextPeriodDate && (
-              <Text style={styles.nextPeriodText}>
-                Next period: {format(nextPeriodDate, "dd MMM")}
-              </Text>
-            )}
-          </>
+          <Text style={{ textAlign: "center" }}>Between cycles</Text>
         )}
       </View>
-          
+
+            
 
       {/* Log Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -260,9 +277,6 @@ const styles = StyleSheet.create({
     alignSelf: "center",
     width: 220,
     height: 220,
-    borderRadius: 110,
-    borderWidth: 3,
-    borderColor: "#f06292",
     justifyContent: "center",
     alignItems: "center",
   },
