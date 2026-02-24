@@ -1,15 +1,19 @@
+import CycleProgressRing from '@/components/CycleProgressRing';
 import { auth } from '@/firebase/config';
 import { addDays, format } from 'date-fns';
-import { doc, getDoc } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { db } from '../../firebase/config';
 import { saveDailyLog } from '../../firebase/dailyLogs';
+import { buildCycles, DailyLog, getCycleProgress, predictNextPeriod } from '../utils/cyclePrediction';
 
 const today = new Date();
 
 
 const symptomOptions = ["Cramps", "Fatigue", "Mood", "Headache", "Bloating", "Acne"];
+
+
 
 export default function DailyTrackingScreen() {
   const [selectedDate, setSelectedDate] = useState(today);
@@ -18,6 +22,12 @@ export default function DailyTrackingScreen() {
   const [symptoms, setSymptoms] = useState<string[]>([]);
   const [userName, setUserName] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [avgCycleLength, setAvgCycleLength] = useState<number | null>(null);
+  const [nextPeriodDate, setNextPeriodDate] = useState<Date | null>(null);
+  const [cycleDay, setCycleDay] = useState<number | null>(null);
+  const [loadingCycleData, setLoadingCycleData] = useState(true);
+
+  
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -57,6 +67,41 @@ export default function DailyTrackingScreen() {
     }
   };
 
+  const fetchCycleData = async () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    
+
+    const logsRef = collection(db, 'users', user.uid, 'dailyLogs');
+    const snapshot = await getDocs(logsRef);
+
+    const logs: DailyLog[] = snapshot.docs.map(doc => ({
+      date: doc.id,
+      bleeding: doc.data().bleeding || "None",
+      symptoms: doc.data().symptoms || [],
+    }));
+
+    const cycles = buildCycles(logs);
+    const progress = getCycleProgress(cycles);
+    const nextPeriod = predictNextPeriod(cycles);
+
+    if (cycles.length === 0) {
+      setLoadingCycleData(false);
+      return;
+    }
+
+    setCycleDay(progress?.cycleDay ?? null);
+    setAvgCycleLength(progress?.avgLength ?? null);
+    setNextPeriodDate(nextPeriod ?? null);
+    setLoadingCycleData(false);
+  };
+
+  useEffect(() => {
+    fetchCycleData();
+  }, []);
+  
+
+
   const handleLog = async () => {
     if (!auth.currentUser) return;
 
@@ -67,7 +112,7 @@ export default function DailyTrackingScreen() {
     setModalVisible(false);
   };
 
-  if (loading) {
+  if (loading || loadingCycleData) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
         <ActivityIndicator size="large" color="#f06292" />
@@ -113,11 +158,17 @@ export default function DailyTrackingScreen() {
       />
 
       {/* Cycle Circle */}
-      <View style={styles.cycleCircle}>
-        <Text style={styles.cycleText}>Period</Text>
-        <Text style={styles.cycleDayText}>Day 2</Text>
-        <Button title="+ Log" onPress={() => setModalVisible(true)} />
-      </View>
+      {cycleDay && avgCycleLength ? (
+        <CycleProgressRing
+          cycleDay={cycleDay}
+          avgLength={avgCycleLength}
+        />
+      ) : (
+        <Text style={{ textAlign: "center", color: "#666", marginBottom: 20 }}>
+          Log more days to see cycle progress!
+        </Text>
+      )}
+          
 
       {/* Log Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
@@ -188,10 +239,10 @@ const styles = StyleSheet.create({
   cycleCircle: {
     marginVertical: 20,
     alignSelf: "center",
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    borderWidth: 2,
+    width: 220,
+    height: 220,
+    borderRadius: 110,
+    borderWidth: 3,
     borderColor: "#f06292",
     justifyContent: "center",
     alignItems: "center",
@@ -206,6 +257,12 @@ const styles = StyleSheet.create({
   cycleDayText: { 
     fontSize: 16, 
     marginBottom: 10 
+  },
+
+  nextPeriodText: { 
+    fontSize: 14, 
+    color: "#666",
+    marginBottom: 10,
   },
 
   modalBackground: {

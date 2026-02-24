@@ -18,7 +18,7 @@ export function buildCycles(logs: DailyLog[]): Cycle[] {
     if (!logs.length) return [];
 
     const sorted = [...logs].sort(
-        (a, b) => Date(a.date).getTime() - new Date(b.date).getTime()
+        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
     );
 
     const cycles: Cycle[] = [];
