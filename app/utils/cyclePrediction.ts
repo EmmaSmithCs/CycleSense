@@ -14,66 +14,71 @@ export type Cycle = {
 };
 
 export function buildCycles(logs: DailyLog[]): Cycle[] {
-    if (!logs.length) return [];
+  if (!logs.length) return [];
 
-    const sorted = [...logs].sort(
-        (a, b) => new Date(a.date!).getTime() - new Date(b.date!).getTime()
-    );
+  const sorted = [...logs].sort(
+    (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+  );
 
-    const cycles: Cycle[] = [];
-    let inCycle = false;
-    let startDate: string | null = null;
+  const cycles: Cycle[] = [];
+  let startDate: string | null = null;
+  const today = new Date();
 
     for (let i = 0; i < sorted.length; i++) {
-        const today = sorted[i];
-        const prev = sorted[i - 1];
+        const current = sorted[i];
+        const next = sorted[i + 1];
 
-        const bleedingToday =today.bleeding !== "None";
-        const bleedingPrev = prev?.bleeding !== "None";
+        const bleedingToday = current.bleeding !== "None";
 
-        if (bleedingToday && !bleedingPrev && !inCycle) {
-            inCycle = true;
-            startDate = today.date!;
+        if (bleedingToday && !startDate) {
+        startDate = current.date;
         }
 
-        if (!bleedingToday && bleedingPrev && inCycle && startDate) {
+        if (!startDate) continue;
 
-            cycles.push({
-                startDate,
-                endDate: prev.date!,
-            });
+        const currentDate = parseISO(current.date);
+        const nextDate = next ? parseISO(next.date) : null;
+        const bleedingNext = next?.bleeding !== "None";
 
-            inCycle = false;
-            startDate = null;
-        }
+        // End cycle if:
+        // 1. Next day is not bleeding
+        // 2. Gap to next log > 1 day
+        // 3. Next log is after today (we treat this as end of past cycle)
+        // 4. Last log in dataset
+        const endCycle =
+        !next ||                       // last log
+        !bleedingNext ||               // next day not bleeding
+        (nextDate && differenceInCalendarDays(nextDate, currentDate) > 1) ||
+        (nextDate && nextDate > today && currentDate < today);
 
-        
-    
-    }
-
-    if (inCycle && startDate) {
+        if (endCycle) {
         cycles.push({
             startDate,
-            endDate: sorted[sorted.length - 1].date!,
+            endDate: current.date,
         });
-    }
-
-    for (let i = 0; i < cycles.length; i++) {
-        if (i < cycles.length - 1) {
-            cycles[i].cycleLength = differenceInCalendarDays(
-                parseISO(cycles[i + 1].startDate),
-                parseISO(cycles[i].startDate)
-            );
-        } else {
-            cycles[i].cycleLength = differenceInCalendarDays(
-                parseISO(cycles[i].endDate),
-                parseISO(cycles[i].startDate)
-            ) + 1;
+        startDate = null;
         }
     }
 
-    return cycles;
+  // Calculate cycle lengths
+  for (let i = 0; i < cycles.length; i++) {
+    if (i < cycles.length - 1) {
+      cycles[i].cycleLength = differenceInCalendarDays(
+        parseISO(cycles[i + 1].startDate),
+        parseISO(cycles[i].startDate)
+      );
+    } else {
+      cycles[i].cycleLength =
+        differenceInCalendarDays(
+          parseISO(cycles[i].endDate),
+          parseISO(cycles[i].startDate)
+        ) + 1;
+    }
+  }
+
+  return cycles;
 }
+
 
 export function getAverageCycleLength(cycles: Cycle[]) {
     if (!cycles.length) return null;
@@ -82,9 +87,9 @@ export function getAverageCycleLength(cycles: Cycle[]) {
         return cycles[0].cycleLength ?? null;
     }
 
-    const comepletedCycles = cycles.slice(0, -1);
+    const completedCycles = cycles.slice(0, -1);
 
-    const lengths = comepletedCycles
+    const lengths = completedCycles
         .map((c) => c.cycleLength)
         .filter((l): l is number => typeof l === "number");
     
