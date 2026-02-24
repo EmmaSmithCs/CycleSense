@@ -1,15 +1,13 @@
-import React, { useState } from 'react';
-import { View, Text, Button, Modal, TouchableOpacity, FlatList, StyleSheet } from 'react-native';
-import { format, addDays } from 'date-fns'; 
-import { getDailyLog, saveDailyLog, DailyLog } from '../../firebase/dailyLogs';
 import { auth } from '@/firebase/config';
+import { addDays, format } from 'date-fns';
+import { doc, getDoc } from 'firebase/firestore';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, Button, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { db } from '../../firebase/config';
+import { saveDailyLog } from '../../firebase/dailyLogs';
 
 const today = new Date();
 
-// Dummy data
-const user = {
-  name : "Emma",
-};
 
 const symptomOptions = ["Cramps", "Fatigue", "Mood", "Headache", "Bloating", "Acne"];
 
@@ -18,6 +16,33 @@ export default function DailyTrackingScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [bleeding, setBleeding] = useState<"None" | "Light" | "Medium" | "Heavy">("None");
   const [symptoms, setSymptoms] = useState<string[]>([]);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 18) return "Good afternoon";
+    return "Good evening";
+  };
+
+  useEffect(() => {
+    const fetchUserName = async () => {
+      const currentUser = auth.currentUser;
+      if (!currentUser) return;
+
+      const userDocRef = doc(db, 'users', currentUser.uid);
+      const userSnapshot = await getDoc(userDocRef);
+
+      if (userSnapshot.exists()) {
+        const data = userSnapshot.data();
+        setUserName(data.name || "User");
+      }
+      setLoading(false);
+    };
+
+    fetchUserName();
+  }, []);
 
   // 7 days for horisontal scroll
   const dateRange = Array.from({ length: 7 }, (_, i) => 
@@ -33,7 +58,6 @@ export default function DailyTrackingScreen() {
   };
 
   const handleLog = async () => {
-    // Implement logging logic TODO
     if (!auth.currentUser) return;
 
     await saveDailyLog(auth.currentUser.uid, selectedDate, {
@@ -43,11 +67,21 @@ export default function DailyTrackingScreen() {
     setModalVisible(false);
   };
 
+  if (loading) {
+    return (
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
+        <ActivityIndicator size="large" color="#f06292" />
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, paddingTop: 50, backgroundColor: "#fff" }}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <Text style={styles.helloText}>Hello {user.name}</Text>
+        <Text style={styles.helloText}>
+          {getGreeting()}, {userName}!
+        </Text>
         <TouchableOpacity>
           <Text style={styles.profileIcon}>👤</Text>
         </TouchableOpacity>
