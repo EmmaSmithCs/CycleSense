@@ -1,13 +1,14 @@
 import { auth, db } from '@/firebase/config';
+import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
-import { useLocalSearchParams, useRouter } from 'expo-router';
-import { collection, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore';
-import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Button, Modal, StyleSheet, Text, View } from 'react-native';
+import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
+import React, { useCallback, useState } from 'react';
+import { ActivityIndicator, Button, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
+const symptomOptions = ["Cramps", "Fatigue", "Mood", "Headache", "Bloating", "Acne"];
 
 // Type for daily log
 type DailyLog = {
@@ -19,13 +20,14 @@ type DailyLog = {
 
 //
 export default function HistoryScreen() {
-    const router = useRouter();
-    const { date } = useLocalSearchParams();
     const [markedDates, setMarkedDates] = useState<any>({});
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [log, setLog] = useState<DailyLog | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [loading, setLoading] = useState(true);
+
+    const [bleeding, setBleeding] = useState<"None" | "Light" | "Medium" | "Heavy">("None");
+    const [symptoms, setSymptoms] = useState<string[]>([]);
 
     const loadMarkedDates = async () => {
         const user = auth.currentUser;
@@ -52,13 +54,13 @@ export default function HistoryScreen() {
 
         setMarkedDates(marked);
         setLoading(false);
-        setSelectedDate(null);
-
     };
 
-    useEffect(() => {
-        loadMarkedDates();
-    }, []);
+    useFocusEffect(
+        useCallback(() => {
+            loadMarkedDates();
+        }, [])
+    );
 
     const onDayPress = async (day: any) => {
         const date = day.dateString;
@@ -71,12 +73,43 @@ export default function HistoryScreen() {
         const snapshot = await getDoc(logRef);
 
         if (snapshot.exists()) {
-            setLog(snapshot.data() as DailyLog);
+            const logData = snapshot.data() as DailyLog;
+            setLog(logData);
+            setBleeding(logData.bleeding as any);
+            setSymptoms(logData.symptoms || []);
         } else {
             setLog(null);
+            setBleeding("None");
+            setSymptoms([]);
         }
 
         setModalVisible(true);
+    };
+
+    const toggleSymptom = (symptom: string) => {
+        setSymptoms((prev) =>
+            prev.includes(symptom)
+                ? prev.filter((s) => s !== symptom)
+                : [...prev, symptom]
+        );
+    };
+            
+    
+
+
+    const handleSaveLog = async () => {
+        if (!selectedDate) return;
+        const user = auth.currentUser;
+        if (!user) return;
+
+        await setDoc(doc(db, 'users', user.uid, 'dailyLogs', selectedDate), {
+            bleeding,
+            symptoms,
+            updatedAt: serverTimestamp(),
+        });
+
+        setModalVisible(false);
+        await loadMarkedDates();
     };
 
     const handleDeleteLog = async () => {
@@ -89,18 +122,10 @@ export default function HistoryScreen() {
         setLog(null);
         setModalVisible(false);
 
-        // Refresh marked dates
         await loadMarkedDates();
-        setSelectedDate(null);
     };
 
    
-    useEffect(() => {
-        if (date) {
-            setSelectedDate(date as string);
-        }
-    }, [date]);
-    
     
 
 
@@ -127,40 +152,50 @@ export default function HistoryScreen() {
             />
 
             <Modal visible={modalVisible} transparent animationType="slide">
-                <View style={styles.modalBackground}>
-                    <View style={styles.modalContainer}>
+                <SafeAreaView style={styles.modalBackground}>
+                    <ScrollView style={styles.modalContainer}>
                         <Text style={styles.modalTitle}>{selectedDate}</Text>
 
-                        {log ? (
-                            <>
-                                <Text>Bleeding: {log.bleeding}</Text>
-                                <Text>Symptoms:
-                                    {log.symptoms.length > 0 ? log.symptoms.join(", ") : "None"}
+                        {/* Bleeding Selector */}
+    
+                            <Text style={{ marginBottom: 5 }}>Bleeding:</Text>
+                            {["None", "Light", "Medium", "Heavy"].map((level) => (
+                            <TouchableOpacity
+                                key={level}
+                                onPress={() => setBleeding(level as any)}
+                                style={[
+                                styles.optionButton,
+                                { backgroundColor: bleeding === level ? "#f06292" : "#eee" },
+                                ]}
+                            >
+                                <Text style={{ color: bleeding === level ? "#fff" : "#000" }}>
+                                {level}
                                 </Text>
+                            </TouchableOpacity>
+                            ))}
 
-                                <Button 
-                                    title="Edit Log" 
-                                    onPress={() => {
-                                        setModalVisible(false);
-                                        router.push({
-                                            pathname: "/(tabs)",
-                                            params: { date: selectedDate },
-                                        });
-                                    }}
-                                />
-                                <Button title="Delete Log" onPress={handleDeleteLog} color="red" />
-                            </>
+                            {/* Symptoms Selector */}   
+                            <Text style={{ marginTop: 10, marginBottom: 5 }}>Symptoms:</Text>
+                            {symptomOptions.map((symptom) => (
+                                <TouchableOpacity
+                                key={symptom}
+                                onPress={() => toggleSymptom(symptom)}
+                                style={[
+                                    styles.optionButton,
+                                    { backgroundColor: symptoms.includes(symptom) ? "#f06292" : "#eee" },
+                                ]}
+                                >
+                                <Text style={{ color: symptoms.includes(symptom) ? "#fff" : "#000" }}>
+                                    {symptom}
+                                </Text>
+                                </TouchableOpacity>
+                            ))}
 
-                        ) : (
-                            <>
-                                <Text>No log for this day.</Text>
-                                <Button title="Add Log" onPress={() => {}} />
-                            </>
-                        )}
-
+                        <Button title="Save Log" onPress={handleSaveLog} />
+                        {log && <Button title="Delete Log" onPress={handleDeleteLog} color="#e57373" />}
                         <Button title="Close" onPress={() => setModalVisible(false)} />
-                    </View>
-                </View>
+                    </ScrollView>
+                </SafeAreaView>
             </Modal>
         </SafeAreaView>
     );
@@ -202,6 +237,13 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: "center",
         alignItems: "center",
+    },
+
+    optionButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        marginBottom: 5,
     },
 
     
