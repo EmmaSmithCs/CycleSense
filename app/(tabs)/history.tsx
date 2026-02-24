@@ -25,6 +25,8 @@ export default function HistoryScreen() {
     const [log, setLog] = useState<DailyLog | null>(null);
     const [modalVisible, setModalVisible] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [calendarKey, setCalendarKey] = useState(0);
+
 
     const [bleeding, setBleeding] = useState<"None" | "Light" | "Medium" | "Heavy">("None");
     const [symptoms, setSymptoms] = useState<string[]>([]);
@@ -74,6 +76,7 @@ export default function HistoryScreen() {
     useFocusEffect(
         useCallback(() => {
             loadMarkedDates();
+            setCalendarKey((prev) => prev + 1);
         }, [])
     );
 
@@ -161,6 +164,7 @@ export default function HistoryScreen() {
             <Text style={styles.title}>History</Text>
 
             <Calendar
+                key={calendarKey}
                 current ={format(new Date(), 'yyyy-MM-dd')}
                 markedDates={markedDates}
                 onDayPress={onDayPress}
