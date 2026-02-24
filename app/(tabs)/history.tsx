@@ -3,12 +3,33 @@ import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
 import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Button, Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 
-const symptomOptions = ["Cramps", "Fatigue", "Mood", "Headache", "Bloating", "Acne"];
+const symptomCategories = [
+  {
+    key: "mood",
+    title: "Feelings",
+    options: ["Happy", "Calm", "Anxious", "Irritable", "Low mood", "Mood swings", "Emotional", "Energised", "Exhausted"],
+  },
+  {
+    key: "physical",
+    title: "Physical",
+    options: ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia"],
+  },
+  {
+    key: "gut",
+    title: "Gut & Appetite",
+    options: ["Bloating", "Gas", "Diarrhoea", "Constipation", "Low appetite", "Increased appetite", "Chocolate cravings", "Salty cravings"],
+  },
+  {
+    key: "mucus",
+    title: "Cervical mucus",
+    options: ["None", "Watery", "Egg white", "Creamy", "Sticky", "Clumpy white", "Brown", "Pink"],
+  },
+];
 
 // Type for daily log
 type DailyLog = {
@@ -83,7 +104,8 @@ export default function HistoryScreen() {
     const onDayPress = async (day: any) => {
         const date = day.dateString;
         setSelectedDate(date);
-
+        await loadLogForDate(new Date(date));
+        
         const user = auth.currentUser;
         if (!user) return;
 
@@ -147,8 +169,29 @@ export default function HistoryScreen() {
         Alert.alert('Deleted!', 'Your daily log has been deleted successfully.');
     };
 
-   
+    const loadLogForDate = async (date: Date) => {
+        if (!auth.currentUser) return;
     
+
+        const dateStr = format(date, "yyyy-MM-dd");
+        const logRef = doc(db, "users", auth.currentUser.uid, "dailyLogs", dateStr);
+        const snap = await getDoc(logRef);
+
+        if (snap.exists()) {
+            const data = snap.data();
+            setBleeding(data.bleeding || "None");
+            setSymptoms(data.symptoms || []);
+        } else {
+            // Reset if no log exists for that day
+            setBleeding("None");
+            setSymptoms([]);
+        }
+    };
+
+   
+    const closeModal = () => {
+        setModalVisible(false);
+    };
 
 
     if (loading) {
@@ -175,52 +218,67 @@ export default function HistoryScreen() {
                 }}
             />
 
-            <Modal visible={modalVisible} transparent animationType="slide">
-                <SafeAreaView style={styles.modalBackground}>
-                    <ScrollView style={styles.modalContainer}>
-                        <Text style={styles.modalTitle}>{selectedDate}</Text>
-
-                        {/* Bleeding Selector */}
-    
-                            <Text style={{ marginBottom: 5 }}>Bleeding:</Text>
-                            {["None", "Light", "Medium", "Heavy"].map((level) => (
-                            <TouchableOpacity
-                                key={level}
-                                onPress={() => setBleeding(level as any)}
-                                style={[
-                                styles.optionButton,
-                                { backgroundColor: bleeding === level ? "#f06292" : "#eee" },
-                                ]}
-                            >
-                                <Text style={{ color: bleeding === level ? "#fff" : "#000" }}>
-                                {level}
-                                </Text>
-                            </TouchableOpacity>
-                            ))}
-
-                            {/* Symptoms Selector */}   
-                            <Text style={{ marginTop: 10, marginBottom: 5 }}>Symptoms:</Text>
-                            {symptomOptions.map((symptom) => (
-                                <TouchableOpacity
-                                key={symptom}
-                                onPress={() => toggleSymptom(symptom)}
-                                style={[
-                                    styles.optionButton,
-                                    { backgroundColor: symptoms.includes(symptom) ? "#f06292" : "#eee" },
-                                ]}
-                                >
-                                <Text style={{ color: symptoms.includes(symptom) ? "#fff" : "#000" }}>
-                                    {symptom}
-                                </Text>
-                                </TouchableOpacity>
-                            ))}
-
+            <Modal visible={modalVisible} animationType="slide" transparent>
+                    <SafeAreaView style={styles.modalBackground}>
+                      <View style={styles.modalContainer}>
+            
+                        <Text style={{ marginBottom: 5 }}>Bleeding:</Text>
+                        {["None", "Light", "Medium", "Heavy"].map((level) => (
+                          <TouchableOpacity
+                            key={level}
+                            onPress={() => setBleeding(level as any)}
+                            style={[
+                              styles.optionButton,
+                              { backgroundColor: bleeding === level ? "#f06292" : "#eee" },
+                            ]}
+                          >
+                            <Text style={{ color: bleeding === level ? "#fff" : "#000" }}>
+                              {level}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+            
+                        <Text style={{ marginTop: 10, marginBottom: 5, fontWeight: "bold" }}>
+                          Symptoms
+                        </Text>
+            
+                        <FlatList
+                          horizontal
+                          showsHorizontalScrollIndicator={false}
+                          data={symptomCategories}
+                          keyExtractor={(item) => item.key}
+                          contentContainerStyle={{ paddingVertical: 10 }}
+                          renderItem={({ item }) => (
+                            <View style={styles.categoryCard}>
+                              <Text style={styles.categoryTitle}>{item.title}</Text>
+            
+                              {item.options.map((symptom) => {
+                                const selected = symptoms.includes(symptom);
+            
+                                return (
+                                  <TouchableOpacity
+                                    key={symptom}
+                                    onPress={() => toggleSymptom(symptom)}
+                                    style={[
+                                      styles.symptomChip,
+                                      { backgroundColor: selected ? "#f06292" : "#eee" },
+                                    ]}
+                                  >
+                                    <Text style={{ color: selected ? "#fff" : "#000", fontSize: 12 }}>
+                                      {symptom}
+                                    </Text>
+                                  </TouchableOpacity>
+                                );
+                              })}
+                            </View>
+                          )}
+                        />
+            
                         <Button title="Save Log" onPress={handleSaveLog} />
-                        {log && <Button title="Delete Log" onPress={handleDeleteLog} color="#e57373" />}
-                        <Button title="Close" onPress={() => setModalVisible(false)} />
-                    </ScrollView>
-                </SafeAreaView>
-            </Modal>
+                        <Button title="Cancel" onPress={closeModal} />
+                      </View>
+                  </SafeAreaView>
+                </Modal>
         </SafeAreaView>
     );
 }
@@ -268,6 +326,28 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderRadius: 8,
         marginBottom: 5,
+    },
+
+    categoryCard: {
+        width: 180,
+        backgroundColor: "#fafafa",
+        padding: 10,
+        borderRadius: 12,
+        marginRight: 12,
+    },
+
+    categoryTitle: {
+        fontWeight: "bold",
+        marginBottom: 6,
+        fontSize: 14,
+    },
+
+    symptomChip: {
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        borderRadius: 20,
+        marginBottom: 6,
+        alignSelf: "flex-start",
     },
 
     

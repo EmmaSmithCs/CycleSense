@@ -12,8 +12,28 @@ import { buildCycles, DailyLog, getCycleProgress, predictNextPeriod } from '../u
 const today = new Date();
 
 
-const symptomOptions = ["Cramps", "Fatigue", "Mood", "Headache", "Bloating", "Acne"];
-
+const symptomCategories = [
+  {
+    key: "mood",
+    title: "Feelings",
+    options: ["Happy", "Calm", "Anxious", "Irritable", "Low mood", "Mood swings", "Emotional", "Energised", "Exhausted"],
+  },
+  {
+    key: "physical",
+    title: "Physical",
+    options: ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia"],
+  },
+  {
+    key: "gut",
+    title: "Gut & Appetite",
+    options: ["Bloating", "Gas", "Diarrhoea", "Constipation", "Low appetite", "Increased appetite", "Chocolate cravings", "Salty cravings"],
+  },
+  {
+    key: "mucus",
+    title: "Cervical mucus",
+    options: ["None", "Watery", "Egg white", "Creamy", "Sticky", "Clumpy white", "Brown", "Pink"],
+  },
+];
 
 
 export default function DailyTrackingScreen() {
@@ -145,6 +165,28 @@ setPeriodLength(actualPeriodLength);
     fetchCycleData();
   };
 
+  const loadLogForDate = async (date: Date) => {
+    if (!auth.currentUser) return;
+
+    const dateStr = format(date, "yyyy-MM-dd");
+    const logRef = doc(db, "users", auth.currentUser.uid, "dailyLogs", dateStr);
+    const snap = await getDoc(logRef);
+
+    if (snap.exists()) {
+      const data = snap.data();
+      setBleeding(data.bleeding || "None");
+      setSymptoms(data.symptoms || []);
+    } else {
+      // Reset if no log exists for that day
+      setBleeding("None");
+      setSymptoms([]);
+    }
+  };
+
+  const closeModal = () => {
+    setModalVisible(false);
+  };
+
   if (loading || loadingCycleData) {
     return (
       <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
@@ -176,10 +218,14 @@ setPeriodLength(actualPeriodLength);
             format(item, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
           return (
             <TouchableOpacity
-              onPress={() => setSelectedDate(item)}
+              onPress={async () => {
+                setSelectedDate(item);
+                await loadLogForDate(item);
+                setModalVisible(true);
+              }}
               style={[
                 styles.dateButton,
-                { backgroundColor: isSelected ? "#f06292" : "#eee" },
+                { backgroundColor: isSelected ? "#f06292" : "#eee", height: 70, justifyContent: "center", alignItems: "center" },
               ]}
             >
               <Text style={{ color: isSelected ? "#fff" : "#000" }}>
@@ -203,6 +249,16 @@ setPeriodLength(actualPeriodLength);
           <Text style={{ textAlign: "center" }}>Between cycles</Text>
         )}
       </View>
+
+      <TouchableOpacity
+        style={styles.fab}
+        onPress={async () => {
+          await loadLogForDate(selectedDate);
+          setModalVisible(true);
+        }}
+      >
+        <Text style={{ color: "#fff", fontSize: 28 }}>＋</Text>
+      </TouchableOpacity>
 
             
 
@@ -230,24 +286,44 @@ setPeriodLength(actualPeriodLength);
               </TouchableOpacity>
             ))}
 
-            <Text style={{ marginTop: 10, marginBottom: 5 }}>Symptoms:</Text>
-            {symptomOptions.map((symptom) => (
-              <TouchableOpacity
-                key={symptom}
-                onPress={() => toggleSymptom(symptom)}
-                style={[
-                  styles.optionButton,
-                  { backgroundColor: symptoms.includes(symptom) ? "#f06292" : "#eee" },
-                ]}
-              >
-                <Text style={{ color: symptoms.includes(symptom) ? "#fff" : "#000" }}>
-                  {symptom}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <Text style={{ marginTop: 10, marginBottom: 5, fontWeight: "bold" }}>
+              Symptoms
+            </Text>
+
+            <FlatList
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              data={symptomCategories}
+              keyExtractor={(item) => item.key}
+              contentContainerStyle={{ paddingVertical: 10 }}
+              renderItem={({ item }) => (
+                <View style={styles.categoryCard}>
+                  <Text style={styles.categoryTitle}>{item.title}</Text>
+
+                  {item.options.map((symptom) => {
+                    const selected = symptoms.includes(symptom);
+
+                    return (
+                      <TouchableOpacity
+                        key={symptom}
+                        onPress={() => toggleSymptom(symptom)}
+                        style={[
+                          styles.symptomChip,
+                          { backgroundColor: selected ? "#f06292" : "#eee" },
+                        ]}
+                      >
+                        <Text style={{ color: selected ? "#fff" : "#000", fontSize: 12 }}>
+                          {symptom}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
+                </View>
+              )}
+            />
 
             <Button title="Save Log" onPress={handleLog} />
-            <Button title="Cancel" onPress={() => setModalVisible(false)} />
+            <Button title="Cancel" onPress={closeModal} />
           </View>
       </View>
     </Modal>
@@ -257,19 +333,21 @@ setPeriodLength(actualPeriodLength);
 
 const styles = StyleSheet.create({
   topBar: {
+    marginTop: 50,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     paddingHorizontal: 20,
   },
 
-  helloText: { fontSize: 20, fontWeight: "bold" },
+  helloText: { fontSize: 25, fontWeight: "bold" },
     profileIcon: { fontSize: 24 },
     dateButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 8,
     marginHorizontal: 5,
+    marginTop: 50,
   },
 
   cycleCircle: {
@@ -279,6 +357,7 @@ const styles = StyleSheet.create({
     height: 220,
     justifyContent: "center",
     alignItems: "center",
+    marginBottom: 150,
   },
 
   cycleText: { 
@@ -318,6 +397,40 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
 
+  categoryCard: {
+    width: 180,
+    backgroundColor: "#fafafa",
+    padding: 10,
+    borderRadius: 12,
+    marginRight: 12,
+  },
+
+  categoryTitle: {
+    fontWeight: "bold",
+    marginBottom: 6,
+    fontSize: 14,
+  },
+
+  symptomChip: {
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 20,
+    marginBottom: 6,
+    alignSelf: "flex-start",
+  },
+
+  fab: {
+    position: "absolute",
+    bottom: 30,
+    right: 20,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: "#f06292",
+    justifyContent: "center",
+    alignItems: "center",
+    elevation: 4,
+  },
   
 });
 
