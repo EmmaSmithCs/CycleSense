@@ -84,7 +84,7 @@ export default function CycleProgressRing({ cycleDay, avgLength, periodLength, i
             cx={dotX}
             cy={dotY}
             r={8}
-            fill={isBleedingToday ? "#e53935" : currentPhaseColor}
+            fill={currentPhaseColor}
             stroke="#fff"
             strokeWidth={2}
           />

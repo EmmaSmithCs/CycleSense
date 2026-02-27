@@ -5,6 +5,7 @@ export type DailyLog = {
     bleeding: "None" | "Light" | "Medium" | "Heavy";
     symptoms: string[];
     date: string;
+    notes?: string;
 };
 
 export type Cycle = {

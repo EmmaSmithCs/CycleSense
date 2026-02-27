@@ -3,7 +3,8 @@ import { addDays, differenceInCalendarDays, format } from 'date-fns';
 import { useFocusEffect } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Button, FlatList, Modal, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Button, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import CycleProgressRing from '../../components/CycleProgressRing';
 import { db } from '../../firebase/config';
 import { saveDailyLog } from '../../firebase/dailyLogs';
@@ -33,6 +34,41 @@ const symptomCategories = [
     title: "Cervical mucus",
     options: ["None", "Watery", "Egg white", "Creamy", "Sticky", "Clumpy white", "Brown", "Pink"],
   },
+  {
+    key: "energy",
+    title: "Energy level",
+    options: ["High", "Medium", "Low"],
+  },
+  {
+    key: "libido",
+    title: "Libido",
+    options: ["High Libido", "Low Libido", "Solo", "Protected", "Unprotected"],
+  },
+  {
+    key: "activity",
+    title: "Activities",
+    options: ["Meditation", "Running", "Cardio", "Yoga", "Weights", "Dancing", "Relaxing", "Reading", "Napping", "Walking"],
+  },
+  {
+    key: "distuption",
+    title: "Cycle disruption",
+    options: ["Travel", "Illness", "Stress", "Sleep disruption", "Medication change"],
+  },
+  {
+    key: "birthControl",
+    title: "Birth control",
+    options: ["None", "Pill", "Missed Pill", "IUD", "Implant", "Injection", "Patch", "Ring", "Condoms", "Other"],
+  },
+  {
+    key: "medication",
+    title: "Medication",
+    options: ["Painkillers", "Hormonal medication", "Antibiotics", "Antidepressants", "Anti-Anxiety", "Antipsychotics", "Antihistamines", "HRT", "Benzos", "Mood Stabilizers"],
+  },
+  {
+    key: "supplements",
+    title: "Supplements",
+    options: ["Vitamins", "Magnesium", "Zinc", "Iron", "Omega 3", "Probiotics", "Adaptogens", "Protein powder", "Fiber supplements"],
+  }
 ];
 
 
@@ -49,6 +85,7 @@ export default function DailyTrackingScreen() {
   const [loadingCycleData, setLoadingCycleData] = useState(true);
   const [periodLength, setPeriodLength] = useState<number | null>(null);
   const [isBleedingToday, setIsBleedingToday] = useState(false);
+  const [notes, setNotes] = useState<string>("");
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -88,6 +125,8 @@ export default function DailyTrackingScreen() {
     }
   };
 
+  
+
   const fetchCycleData = async () => {
     const user = auth.currentUser;
     if (!user) return;
@@ -99,6 +138,7 @@ export default function DailyTrackingScreen() {
       date: doc.id,
       bleeding: doc.data().bleeding || "None",
       symptoms: doc.data().symptoms || [],
+      notes: doc.data().notes || "",
     }));
 
     const cycles = buildCycles(logs);
@@ -132,12 +172,12 @@ export default function DailyTrackingScreen() {
       }
     }
 
-setPeriodLength(actualPeriodLength);
+  setPeriodLength(actualPeriodLength);
 
     const todayStr = format(new Date(), "yyyy-MM-dd");
     const todayLog = logs.find(l => l.date === todayStr);
 
-    setIsBleedingToday(todayLog?.bleeding !== "None");
+    setIsBleedingToday(!!todayLog && todayLog.bleeding !== "None");
 
 
     setCycleDay(dayOfCycle);
@@ -157,10 +197,15 @@ setPeriodLength(actualPeriodLength);
   const handleLog = async () => {
     if (!auth.currentUser) return;
 
-    await saveDailyLog(auth.currentUser.uid, selectedDate, {
+    const logData: any = {
       bleeding,
       symptoms,
-    });
+    };
+    if (notes?.trim()) {
+      logData.notes = notes;
+    }
+
+    await saveDailyLog(auth.currentUser.uid, selectedDate, logData);
     setModalVisible(false);
     fetchCycleData();
   };
@@ -176,10 +221,12 @@ setPeriodLength(actualPeriodLength);
       const data = snap.data();
       setBleeding(data.bleeding || "None");
       setSymptoms(data.symptoms || []);
+      setNotes(data.notes || "");
     } else {
       // Reset if no log exists for that day
       setBleeding("None");
       setSymptoms([]);
+      setNotes("");
     }
   };
 
@@ -264,68 +311,86 @@ setPeriodLength(actualPeriodLength);
 
       {/* Log Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
-        <View style={styles.modalBackground}>
-          <View style={styles.modalContainer}>
-            <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10 }}>
-              Log for {format(selectedDate, "yyyy-MM-dd")}
-            </Text>
+        <SafeAreaView style={styles.modalBackground}>
+          <View style={styles.modalCard}>
+            <ScrollView 
+                style={styles.modalScrollContent}
+                showsVerticalScrollIndicator={false}>
+              <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10 }}>
+                Log for {format(selectedDate, "yyyy-MM-dd")}
+              </Text>
 
-            <Text style={{ marginBottom: 5 }}>Bleeding:</Text>
-            {["None", "Light", "Medium", "Heavy"].map((level) => (
-              <TouchableOpacity
-                key={level}
-                onPress={() => setBleeding(level as any)}
-                style={[
-                  styles.optionButton,
-                  { backgroundColor: bleeding === level ? "#f06292" : "#eee" },
-                ]}
-              >
-                <Text style={{ color: bleeding === level ? "#fff" : "#000" }}>
-                  {level}
-                </Text>
-              </TouchableOpacity>
-            ))}
+              <Text style={{ marginBottom: 5 }}>Bleeding:</Text>
+              {["None", "Light", "Medium", "Heavy"].map((level) => (
+                <TouchableOpacity
+                  key={level}
+                  onPress={() => setBleeding(level as any)}
+                  style={[
+                    styles.optionButton,
+                    { backgroundColor: bleeding === level ? "#f06292" : "#eee" },
+                  ]}
+                >
+                  <Text style={{ color: bleeding === level ? "#fff" : "#000" }}>
+                    {level}
+                  </Text>
+                </TouchableOpacity>
+              ))}
 
-            <Text style={{ marginTop: 10, marginBottom: 5, fontWeight: "bold" }}>
-              Symptoms
-            </Text>
+              {Object.entries(symptomCategories).map(([category, categoryData]) => (
+              <View key={category} style={{ marginBottom: 15 }}>
+                <Text style={{ fontWeight: "bold", marginBottom: 5 }}>{categoryData.title}</Text>
 
-            <FlatList
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              data={symptomCategories}
-              keyExtractor={(item) => item.key}
-              contentContainerStyle={{ paddingVertical: 10 }}
-              renderItem={({ item }) => (
-                <View style={styles.categoryCard}>
-                  <Text style={styles.categoryTitle}>{item.title}</Text>
+                      <FlatList
+                        horizontal
+                        data={categoryData.options}
+                        keyExtractor={(item) => item}
+                        showsHorizontalScrollIndicator={false}
+                        renderItem={({ item }) => (
+                          <TouchableOpacity
+                            onPress={() => toggleSymptom(item)}
+                            style={[
+                              styles.optionButton,
+                              {
+                                backgroundColor: symptoms.includes(item) ? "#f06292" : "#eee",
+                                marginRight: 8,
+                              },
+                            ]}
+                          >
+                            <Text
+                              style={{
+                                color: symptoms.includes(item) ? "#fff" : "#000",
+                                fontSize: 12,
+                              }}
+                            >
+                              {item}
+                            </Text>
+                          </TouchableOpacity>
+                        )}
+                      />
+                    </View>
+                  ))}
 
-                  {item.options.map((symptom) => {
-                    const selected = symptoms.includes(symptom);
+                  <Text style={{ marginTop: 10, marginBottom: 5 }}>Notes:</Text>
+                  <TextInput
+                    value={notes}
+                    onChangeText={setNotes}
+                    placeholder="Anything you noticed today?"
+                    multiline
+                    style={{
+                      borderWidth: 1,
+                      borderColor: "#ddd",
+                      borderRadius: 8,
+                      padding: 10,
+                      minHeight: 80,
+                      textAlignVertical: "top",
+                    }}
+                  />
 
-                    return (
-                      <TouchableOpacity
-                        key={symptom}
-                        onPress={() => toggleSymptom(symptom)}
-                        style={[
-                          styles.symptomChip,
-                          { backgroundColor: selected ? "#f06292" : "#eee" },
-                        ]}
-                      >
-                        <Text style={{ color: selected ? "#fff" : "#000", fontSize: 12 }}>
-                          {symptom}
-                        </Text>
-                      </TouchableOpacity>
-                    );
-                  })}
-                </View>
-              )}
-            />
-
-            <Button title="Save Log" onPress={handleLog} />
-            <Button title="Cancel" onPress={closeModal} />
+              <Button title="Save Log" onPress={handleLog} />
+              <Button title="Cancel" onPress={closeModal} />
+            </ScrollView>
           </View>
-      </View>
+      </SafeAreaView>
     </Modal>
   </View>
   );
@@ -383,13 +448,6 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
 
-  modalContainer: {
-    backgroundColor: "#fff",
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 10,
-  },
-
   optionButton: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -431,7 +489,18 @@ const styles = StyleSheet.create({
     alignItems: "center",
     elevation: 4,
   },
-  
+
+  modalCard: {
+    backgroundColor: "#fff",
+    marginHorizontal: 20,
+    borderRadius: 12,
+    maxHeight: "90%",
+  },
+
+  modalScrollContent: {
+    padding: 20,
+    paddingBottom: 40,
+  }
 });
 
 
