@@ -12,6 +12,12 @@ import { buildCycles, DailyLog, getCycleProgress, predictNextPeriod } from '../u
 
 const today = new Date();
 
+const intensitySymptoms = ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia", "Bloating", "Gas", "Diarrhoea", "Constipation"];
+
+type SymptomEntry = {
+  name: string;
+  intensity?: number; 
+}
 
 const symptomCategories = [
   {
@@ -86,6 +92,9 @@ export default function DailyTrackingScreen() {
   const [periodLength, setPeriodLength] = useState<number | null>(null);
   const [isBleedingToday, setIsBleedingToday] = useState(false);
   const [notes, setNotes] = useState<string>("");
+  const [symptomsWithIntensity, setSymptomsWithIntensity] = useState<SymptomEntry[]>([]);
+  const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
+  const [selectedIntensity, setSelectedIntensity] = useState<number>(3);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -199,7 +208,10 @@ export default function DailyTrackingScreen() {
 
     const logData: any = {
       bleeding,
-      symptoms,
+      symptoms: [
+        ...symptoms.map(s => ({ name: s })),
+        ...symptomsWithIntensity,
+      ],
     };
     if (notes?.trim()) {
       logData.notes = notes;
@@ -345,27 +357,41 @@ export default function DailyTrackingScreen() {
                         data={categoryData.options}
                         keyExtractor={(item) => item}
                         showsHorizontalScrollIndicator={false}
-                        renderItem={({ item }) => (
-                          <TouchableOpacity
-                            onPress={() => toggleSymptom(item)}
-                            style={[
-                              styles.optionButton,
-                              {
-                                backgroundColor: symptoms.includes(item) ? "#f06292" : "#eee",
-                                marginRight: 8,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={{
-                                color: symptoms.includes(item) ? "#fff" : "#000",
-                                fontSize: 12,
+                        renderItem={({ item }) => {
+                          const hasIntensity = intensitySymptoms.includes(item);
+                          const isSelected = hasIntensity
+                            ? !!symptomsWithIntensity.find(s => s.name === item)
+                            : symptoms.includes(item);
+                          return (
+                            <TouchableOpacity
+                              onPress={() => {
+                                if (hasIntensity) {
+                                  setSelectedSymptom(item);
+                                  const entry = symptomsWithIntensity.find(s => s.name === item);
+                                  setSelectedIntensity(entry?.intensity || 3);
+                                } else {
+                                  toggleSymptom(item);
+                                }
                               }}
+                              style={[
+                                styles.optionButton,
+                                {
+                                  backgroundColor: symptoms.includes(item) ? "#f06292" : "#eee",
+                                  marginRight: 8,
+                                },
+                              ]}
                             >
-                              {item}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
+                              <Text
+                                style={{
+                                  color: symptoms.includes(item) ? "#fff" : "#000",
+                                  fontSize: 12,
+                                }}
+                              >
+                                {item}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        }}
                       />
                     </View>
                   ))}
@@ -388,6 +414,48 @@ export default function DailyTrackingScreen() {
 
               <Button title="Save Log" onPress={handleLog} />
               <Button title="Cancel" onPress={closeModal} />
+
+              <Modal visible={!!selectedSymptom} animationType="fade" transparent>
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000000aa" }}>
+                    <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 12, width: 250 }}>
+                      <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10 }}>{selectedSymptom} Intensity</Text>
+                      <Text style={{ fontSize: 14, marginBottom: 10 }}>Current Intensity: {selectedIntensity}</Text>
+
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
+                        {[1, 2, 3, 4, 5].map((level) => (
+                          <TouchableOpacity
+                            key={level}
+                            onPress={() => setSelectedIntensity(level)}
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 20,
+                              backgroundColor: selectedIntensity === level ? "#f06292" : "#eee",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text style={{ color: selectedIntensity === level ? "#fff" : "#000" }}>{level}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+
+                      <Button
+                        title="Save"
+                        onPress={() => {
+                          setSymptomsWithIntensity(prev => {
+                            const filtered = prev.filter(s => s.name !== selectedSymptom);
+                            return [...filtered, { name: selectedSymptom!, intensity: selectedIntensity }];
+                          });
+                          setSelectedSymptom(null);
+                        }}
+                      />
+                      <Button title="Cancel" onPress={() => setSelectedSymptom(null)} />
+
+                    </View>
+                </View>
+              </Modal>
+
             </ScrollView>
           </View>
       </SafeAreaView>
