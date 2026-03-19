@@ -181,7 +181,7 @@ export default function DailyTrackingScreen() {
       }
     }
 
-  setPeriodLength(actualPeriodLength);
+    setPeriodLength(actualPeriodLength);
 
     const todayStr = format(new Date(), "yyyy-MM-dd");
     const todayLog = logs.find(l => l.date === todayStr);
@@ -209,8 +209,13 @@ export default function DailyTrackingScreen() {
     const logData: any = {
       bleeding,
       symptoms: [
+        // Normal symptoms
         ...symptoms.map(s => ({ name: s })),
-        ...symptomsWithIntensity,
+        // Intensity symptoms
+        ...symptomsWithIntensity.map(s => ({
+          name: typeof s.name === "string" ? s.name : (s.name as any).name,
+          intensity: s.intensity,
+        })),
       ],
     };
     if (notes?.trim()) {
