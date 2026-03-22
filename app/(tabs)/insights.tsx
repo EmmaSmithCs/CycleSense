@@ -25,6 +25,7 @@ type Insight = {
     type: string;
     message: string;
     details?: any;
+    cardType: "summary" | "symptom" | "intensity" | "prediction";
 };
 
 const getPhaseForDay = (cycleDay: number, avgLength: number): string => {
@@ -110,12 +111,31 @@ export default function InsightsScreen() {
 
         const newInsights: Insight[] = [];
 
+        // Summary card
+        const summarySymptoms = todayLog.symptoms.map(sym => ({
+            name: sym.name,
+            hasShoppingList: !!(symptomInfo[sym.name]?.shoppingList?.length)
+        }));
+
+        newInsights.push({
+            cardType: "summary",
+            type: "Today's Log",
+            message: `You tracked ${summarySymptoms.length} symptom${summarySymptoms.length !== 1 ? "s" : ""} today`,
+            details: {
+                symptoms: summarySymptoms,
+            }
+        });
+
         // Symptoms today
         todayLog.symptoms.forEach(sym => {
             const info = symptomInfo[sym.name] ?? {};
             const intensity = Number(sym.intensity) || 0;
+            const hasContent = Array.isArray(info.shoppingList) && info.shoppingList.length > 0;
+
+            if (!hasContent) return;
 
             newInsights.push({
+                cardType: "symptom",
                 type: `Symptom: ${sym.name}`,
                 message: `You tracked ${sym.name} today`,
                 details: {
@@ -149,6 +169,7 @@ export default function InsightsScreen() {
                 if (sym.intensity > avgPastIntensity) {
                     const info = symptomInfo[sym.name];
                     newInsights.push({
+                        cardType: "intensity",
                         type: 'Intensity: ' + sym.name,
                         message: `${sym.name} seems to be worsening (intensity ${sym.intensity} vs avg ${avgPastIntensity.toFixed(1)}).`,
                         details: {
@@ -161,6 +182,7 @@ export default function InsightsScreen() {
                 } else if (sym.intensity < avgPastIntensity) {
                     const info = symptomInfo[sym.name];
                     newInsights.push({
+                        cardType: "intensity",
                         type: 'Intensity: ' + sym.name,
                         message: `${sym.name} is improving (intensity ${sym.intensity} vs avg ${avgPastIntensity.toFixed(1)}).`,
                         details: {
@@ -253,11 +275,12 @@ export default function InsightsScreen() {
 
                 if (!info.shoppingList || info.shoppingList.length === 0) return;
 
-                const alreadyAdded = newInsights.some(i => i.type === `Prediction: ${symName}`);
+                const alreadyAdded = newInsights.some(i => i.cardType === "prediction" && i.type === `Prediction: ${symName}`);
                 if (alreadyAdded) return;
            
 
                 newInsights.push({
+                    cardType: "prediction",
                     type: `Prediction: ${symName}`,
                     message: `Based on your history, you often experience ${symName} around day ${day} of your cycle. Consider preparing!`,
                     details: {
@@ -270,8 +293,9 @@ export default function InsightsScreen() {
             }); 
 
         });
-  
-       
+
+        const order = {summary: 0, symptom: 1, intensity: 2, prediction: 3};
+        newInsights.sort((a, b) => order[a.cardType] - order[b.cardType]);
 
         return newInsights;
     };
@@ -349,87 +373,145 @@ export default function InsightsScreen() {
                 data={insights}
                 keyExtractor={(item, index) => item.type +index}
                 contentContainerStyle={{ padding: 20 }}
-                renderItem={({ item, index }) => {
-                    const animation = animations.get(index) || new Animated.Value(0);
-                    if (!animations.has(index)) animations.set(index, animation);
-                    const isExpanded = expandedIndex === index;
-                    return (
-                        <TouchableOpacity onPress={() => toggleCard(index)}>
-                            <Animated.View 
-                                style={[
-                                    styles.insightCard,
-                                    {
-                                        transform: [
-                                            {scale: animation.interpolate({
-                                                inputRange: [0, 1],
-                                                outputRange: [1, 1.02],
-                                            }) ?? 1},
-                                        ]
-                                    }
-                                ]}>
-                                <Text style = {{ position: "absolute", top: 10, right: 10, fontSize: 18 }}>
-                                    {isExpanded ? "▲" : "▼"}
-                                </Text>
-                                <Text style={styles.insightType}>{item.type}</Text>
-                                <Text style={styles.insightMessage}>{item.message}</Text>
+renderItem={({ item, index }) => {
+    const animation = animations.get(index) || new Animated.Value(0);
+    if (!animations.has(index)) animations.set(index, animation);
+    const isExpanded = expandedIndex === index;
 
-        
+    if (item.cardType === "summary") {
+        const symptoms: { name: string; hasShoppingList: boolean }[] = item.details?.symptoms ?? [];
+        const preview = symptoms.slice(0, 4).map(s => s.name).join(", ");
+        const hasMore = symptoms.length > 4;
 
-                                
-                                <Animated.View
-                                    style={{
-                                        maxHeight: animation.interpolate({
-                                            inputRange: [0, 1],
-                                            outputRange: [0, 300],
-                                        }),
-                                        overflow: "hidden",
-                                        opacity: animation,
-                                        marginTop: 10,
-                                    }}
+        return (
+            <TouchableOpacity onPress={() => toggleCard(index)}>
+                <View style={[styles.insightCard, styles.summaryCard]}>
+                    <Text style={{ position: "absolute", top: 10, right: 10, fontSize: 18 }}>
+                        {isExpanded ? "▲" : "▼"}
+                    </Text>
+                    <Text style={styles.insightType}>📋 Today's Log</Text>
+                    <Text style={styles.insightMessage}>
+                        {isExpanded
+                            ? "All symptoms tracked today:"
+                            : `${preview}${hasMore ? ` +${symptoms.length - 4} more` : ""}`
+                        }
+                    </Text>
+
+                    <Animated.View
+                        style={{
+                            maxHeight: animation.interpolate({
+                                inputRange: [0, 1],
+                                outputRange: [0, 400],
+                            }),
+                            overflow: "hidden",
+                            opacity: animation,
+                            marginTop: 8,
+                        }}
+                    >
+                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
+                            {symptoms.map((sym, i) => (
+                                <View
+                                    key={i}
+                                    style={[
+                                        styles.symptomChip,
+                                        sym.hasShoppingList && styles.symptomChipHighlight,
+                                    ]}
                                 >
-                                    {item.details?.description && (
-                                        <Text style={{ marginTop: 5}}>
-                                            {item.details.description}
-                                        </Text>
-                                    )}
+                                    <Text style={{
+                                        fontSize: 12,
+                                        fontWeight: sym.hasShoppingList ? "bold" : "normal",
+                                        color: sym.hasShoppingList ? "#c2185b" : "#555",
+                                    }}>
+                                        {sym.name}
+                                    </Text>
+                                </View>
+                            ))}
+                        </View>
+                        <Text style={{ fontSize: 11, color: "#999", marginTop: 8 }}>
+                            Bold symptoms have tips &amp; product recommendations below
+                        </Text>
+                    </Animated.View>
+                </View>
+            </TouchableOpacity>
+        );
+    }
 
-                                    {item.details?.phase && item.details.phase !== "Any" && (
-                                        <Text style={{ marginTop: 5, fontStyle: "italic"}}>
-                                            Phase: {item.details.phase}
-                                        </Text>
-                                    )}
+    return (
+        <TouchableOpacity onPress={() => toggleCard(index)}>
+            <Animated.View
+                style={[
+                    styles.insightCard,
+                    item.cardType === "intensity" && styles.intensityCard,
+                    item.cardType === "prediction" && styles.predictionCard,
+                    {
+                        transform: [
+                            {
+                                scale: animation.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [1, 1.02],
+                                }),
+                            },
+                        ]
+                    }
+                ]}>
+                <Text style={{ position: "absolute", top: 10, right: 10, fontSize: 18 }}>
+                    {isExpanded ? "▲" : "▼"}
+                </Text>
+                <Text style={styles.insightType}>{item.type}</Text>
+                <Text style={styles.insightMessage}>{item.message}</Text>
 
-                                    {(item.details?.tips ?? []).length > 0 && (
-                                        <View style={{ marginTop: 5 }}>
-                                            {(item.details?.tips ?? []).slice(0, 2).map((tip: string, idx: number) => (
-                                                <Text key={idx} style={{ fontStyle: "italic" }}>
-                                                    • {tip}
-                                                </Text>
-                                            ))}
-                                        </View>
-                                    )}
+                <Animated.View
+                    style={{
+                        maxHeight: animation.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [0, 300],
+                        }),
+                        overflow: "hidden",
+                        opacity: animation,
+                        marginTop: 10,
+                    }}
+                >
+                    {item.details?.description && (
+                        <Text style={{ marginTop: 5 }}>
+                            {item.details.description}
+                        </Text>
+                    )}
 
-                                    {(item.details?.shoppingList ?? []).length > 0 && (
-                                        <View style={{ marginTop: 5 }}>
-                                            <Text style={{ fontWeight: "bold" }}>Recommended Products:</Text>
-                                            {(item.details?.shoppingList ?? []).map((product: string, idx: number) => (
-                                                <Text key={idx} style={{ fontStyle: "italic" }}>
-                                                    • {product}
-                                                </Text>
-                                            ))}
-                                        </View>
-                                    )}
-                                </Animated.View>
-                                
-                            </Animated.View>
-                        </TouchableOpacity>
-                    );
-                    
-                }}
-                
-                ListEmptyComponent={<Text style={{ textAlign: "center"}}>No Insights</Text>}
+                    {item.details?.phase && item.details.phase !== "Any" && (
+                        <Text style={{ marginTop: 5, fontStyle: "italic" }}>
+                            Phase: {item.details.phase}
+                        </Text>
+                    )}
+
+                    {(item.details?.tips ?? []).length > 0 && (
+                        <View style={{ marginTop: 5 }}>
+                            {(item.details?.tips ?? []).slice(0, 2).map((tip: string, idx: number) => (
+                                <Text key={idx} style={{ fontStyle: "italic" }}>
+                                    • {tip}
+                                </Text>
+                            ))}
+                        </View>
+                    )}
+
+                    {(item.details?.shoppingList ?? []).length > 0 && (
+                        <View style={{ marginTop: 5 }}>
+                            <Text style={{ fontWeight: "bold" }}>Recommended Products:</Text>
+                            {(item.details?.shoppingList ?? []).map((product: string, idx: number) => (
+                                <Text key={idx} style={{ fontStyle: "italic" }}>
+                                    • {product}
+                                </Text>
+                            ))}
+                        </View>
+                    )}
+                </Animated.View>
+            </Animated.View>
+        </TouchableOpacity>
+    );
+}}
+                ListEmptyComponent={<Text style={{ textAlign: "center" }}>No Insights</Text>}
             />
         </View>
+    
     );
 }
 
@@ -455,6 +537,20 @@ const styles = StyleSheet.create({
         marginBottom: 15,
     },
 
+    summaryCard: {
+        backgroundColor: "#fce4ec",
+        borderWidth: 1,
+        borderColor: "#f06292",
+    },
+
+    intensityCard: {
+        backgroundColor: "#fff3e0"
+    },
+
+    predictionCard: {
+        backgroundColor: "#e8eaf6"
+    },
+
     insightType: {
         fontSize: 14,
         fontWeight: "bold",
@@ -462,8 +558,20 @@ const styles = StyleSheet.create({
 
     insightMessage: {
         fontSize: 12,
+        marginTop: 3,
+    },
+
+    symptomChip: {
+        backgroundColor: "#ede7f6",
+        paddingHorizontal: 10,
+        paddingVertical: 4,
+        borderRadius: 20,
+    },
+
+    symptomChipHighlight: {
+        backgroundColor: "#fce4ec",
+        borderWidth: 1,
+        borderColor: "#f48fb1",
     },
 });
 
-
-    
