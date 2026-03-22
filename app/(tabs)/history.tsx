@@ -1,7 +1,7 @@
 import { auth, db } from '@/firebase/config';
 import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
-import { collection, deleteDoc, doc, getDoc, getDocs, serverTimestamp, setDoc } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
@@ -53,7 +53,7 @@ const symptomCategories = [
     options: ["Meditation", "Running", "Cardio", "Yoga", "Weights", "Dancing", "Relaxing", "Reading", "Napping", "Walking"],
   },
   {
-    key: "distuption",
+    key: "disruption",
     title: "Cycle disruption",
     options: ["Travel", "Illness", "Stress", "Sleep disruption", "Medication change"],
   },
@@ -78,12 +78,10 @@ const symptomCategories = [
 type DailyLog = {
   id: string;
   bleeding: string;
-  symptoms: string[];
+  symptoms: string[] | SymptomEntry[];
   date?: string;
+  notes?: string;
 }
-
-const today = new Date();
-
 
 
 
@@ -134,9 +132,9 @@ export default function HistoryScreen() {
           };
       });
 
-      const today = format(new Date(), 'yyyy-MM-dd');
-      marked[today] = {
-        ...(marked[today] || {}),
+      const todayStr = format(new Date(), 'yyyy-MM-dd');
+      marked[todayStr] = {
+        ...(marked[todayStr] || {}),
         selected: true,
         selectedColor: "#ba68c8",
       };
@@ -161,54 +159,38 @@ export default function HistoryScreen() {
     const handleLog = async () => {
       if (!auth.currentUser || !selectedDate) return;
     
+      const intentsityNames = new Set(symptomsWithIntensity.map(s => s.name));
+
+      const finalSymptoms: SymptomEntry[] = [
+        ...symptomsWithIntensity,
+        ...symptoms
+          .filter(name => !intentsityNames.has(name))
+          .map(name => ({ name })),
+      ];
+
       const logData: any = {
         bleeding,
-        symptoms: [
-          ...symptoms.map(s => ({ name: s })),
-          ...symptomsWithIntensity,
-        ],
-
+        symptoms: finalSymptoms,
       };
-      
-      if (notes?.trim()) {
-        logData.notes = notes;
+
+      if (notes.trim()) {
+        logData.notes = notes.trim();
       }
-  
+
       await saveDailyLog(auth.currentUser.uid, new Date(selectedDate), logData);
 
       setModalVisible(false);
-
       await loadMarkedDates();
-      setCalendarKey(prev => prev + 1);
+      setCalendarKey((prev) => prev + 1);
       Alert.alert('Saved!', 'Your daily log has been saved successfully.');
       setSelectedSymptom(null);
-    };
+    };  
 
     const onDayPress = async (day: any) => {
       const date = day.dateString;
       setSelectedDate(date);
       await loadLogForDate(new Date(date));
       
-      const user = auth.currentUser;
-      if (!user) return;
-
-      const logRef = doc(db, 'users', user.uid, 'dailyLogs', date);
-      const snapshot = await getDoc(logRef);
-
-      if (snapshot.exists()) {
-        const logData = snapshot.data() as DailyLog;
-        setLog(logData);
-        setBleeding(logData.bleeding as any);
-        const symptomNames =
-          (logData.symptoms || []).map((s: any) => s.name ?? s);
-
-        setSymptoms(symptomNames);
-      } else {
-        setLog(null);
-        setBleeding("None");
-        setSymptoms([]);
-      }
-
       setModalVisible(true);
     };
 
@@ -220,23 +202,6 @@ export default function HistoryScreen() {
       );
     };
             
-
-    const handleSaveLog = async () => {
-        if (!selectedDate) return;
-        const user = auth.currentUser;
-        if (!user) return;
-
-        await setDoc(doc(db, 'users', user.uid, 'dailyLogs', selectedDate), {
-            bleeding,
-            symptoms,
-            updatedAt: serverTimestamp(),
-        });
-
-        setModalVisible(false);
-        await loadMarkedDates();
-
-        Alert.alert('Saved!', 'Your daily log has been saved successfully.');
-    };
 
     const handleDeleteLog = async () => {
         if (!selectedDate) return;
@@ -254,36 +219,51 @@ export default function HistoryScreen() {
     };
 
     const loadLogForDate = async (date: Date) => {
-        if (!auth.currentUser) return;
-    
+      if (!auth.currentUser) return;
 
-        const dateStr = format(date, "yyyy-MM-dd");
-        const logRef = doc(db, "users", auth.currentUser.uid, "dailyLogs", dateStr);
-        const snap = await getDoc(logRef);
+      setBleeding("None");
+      setSymptoms([]);
+      setSymptomsWithIntensity([]);
+      setNotes("");
+      
+      const dateStr = format(date, 'yyyy-MM-dd');
+      const logRef = doc(db, 'users', auth.currentUser.uid, 'dailyLogs', dateStr);
+      const snap = await getDoc(logRef);
 
-        if (snap.exists()) {
-            const data = snap.data();
-            setBleeding(data.bleeding || "None");
-            const normalSymptoms: string[] = [];
-            const intensitySymptoms: SymptomEntry[] = [];
+      if (snap.exists()) {
+        const data = snap.data();
+        setBleeding(data.bleeding || "None");
+        setNotes(data.notes || "");
 
-            (data.symptoms || []).forEach((s: any) => {
-              if (s?.intensity) {
-                intensitySymptoms.push({ name: s.name, intensity: s.intensity });
-              } else {
-                normalSymptoms.push(s.name || s);
-              }
-            });
-            setSymptoms(normalSymptoms);
-            setSymptomsWithIntensity(intensitySymptoms);
-            setNotes(data.notes || "");
-        } else {
-            // Reset if no log exists for that day
-            setBleeding("None");
-            setSymptoms([]);
-            setSymptomsWithIntensity([]);
-            setNotes("");
-        }
+        const withIntensity: SymptomEntry[] = [];
+        const normalSymptoms: string[] = [];
+
+        (data.symptoms || []).forEach((s: any) => {
+          if (s?.intensity !== undefined) {
+            withIntensity.push({ name: s.name, intensity: s.intensity });
+          } 
+        });
+
+        const intensityNames = new Set(withIntensity.map(s => s.name));
+
+        (data.symptoms || []).forEach((s: any) => {
+          if (s?.intensity === undefined) {
+            const name = s.name || s;
+            if (!intensityNames.has(name)) {
+              normalSymptoms.push(name);
+            }
+          }
+        });
+
+        setSymptomsWithIntensity(withIntensity);
+        setSymptoms(normalSymptoms);
+      } else {
+        setBleeding("None");
+        setNotes("");
+        setSymptoms([]);
+        setSymptomsWithIntensity([]);
+      }
+      
     };
 
    

@@ -1,9 +1,9 @@
 // app/firebase/dailyLogs.ts
 
 // Imports
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from "firebase/firestore";
+import { formatDate } from "date-fns";
+import { doc, getDoc, serverTimestamp, setDoc } from "firebase/firestore";
 import { db } from "./config";
-import { format, formatDate } from "date-fns";
 
 export type DailyLog = {
     bleeding?: "None" | "Light" | "Medium" | "Heavy";
@@ -24,6 +24,6 @@ export async function saveDailyLog(userId: string, date: Date, data: DailyLog): 
     await setDoc(docRef, {
         ...data,
         timestamp: serverTimestamp(),
-    }, { merge: true });
+    }, { merge: false });  // 
 }
 
