@@ -150,6 +150,7 @@ export function getCycleInfo(logs: DailyLog[]) {
             cycleDay: null,
             currentPhase: null,
             avgLength: null,
+            cycleStartDate: null,
         };
     }
 
@@ -190,5 +191,6 @@ export function getCycleInfo(logs: DailyLog[]) {
         cycleDay,
         currentPhase,
         avgLength: progress?.avgLength || 28,
+        cycleStartDate: lastCycle.startDate,
     };
 }

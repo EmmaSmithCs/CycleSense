@@ -1,11 +1,11 @@
 import { auth, db } from '@/firebase/config';
 import { useFocusEffect } from '@react-navigation/native';
-import { format } from 'date-fns';
+import { differenceInCalendarDays, format } from 'date-fns';
 import { collection, getDocs } from 'firebase/firestore';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { symptomInfo } from '../data/symptomInfo';
-import { getCycleInfo } from '../utils/cyclePrediction';
+import { buildCycles, getCycleInfo } from '../utils/cyclePrediction';
 
 
 
@@ -26,6 +26,34 @@ type Insight = {
     message: string;
     details?: any;
 };
+
+const getPhaseForDay = (cycleDay: number, avgLength: number): string => {
+    const periodLength = 5;
+    const ovulationLength = 2;
+    const lutealLength = 14;
+    const follicularLength = Math.max(
+        avgLength - periodLength - ovulationLength - lutealLength,
+        0
+    );
+
+    const phases = [
+        { name: "Menstrual", length: periodLength },
+        { name: "Follicular", length: follicularLength },
+        { name: "Ovulation", length: ovulationLength },
+        { name: "Luteal", length: lutealLength },
+    ];
+
+    let running = 0;
+    for (const phase of phases) {
+        running += phase.length;
+        if (cycleDay <= running) {
+            return phase.name;
+        }
+    }
+
+    return "Luteal";
+};
+
 
 export default function InsightsScreen() {
     const [logs, setLogs] = useState<DailyLog[]>([]);
@@ -66,9 +94,12 @@ export default function InsightsScreen() {
         console.log("Fetched Logs for Insights:", logs);
         if (!logs.length) return;
 
-        const { cycleDay, currentPhase } = getCycleInfo(convertToCycleLogs(logs));
+        const cycleLogs = convertToCycleLogs(logs);
+        const { cycleDay, currentPhase, cycleStartDate, avgLength } = getCycleInfo(cycleLogs);
 
         if (!cycleDay || !currentPhase) return;
+
+        const resolvedAvgLength = avgLength || 28;
 
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         const todayLog = logs.find(l => format(new Date(l.date || ""), 'yyyy-MM-dd') === todayStr);
@@ -146,6 +177,32 @@ export default function InsightsScreen() {
 
         // Predicted phase insights
 
+        const cycles = buildCycles(cycleLogs);
+        const getCycleDayForDate = (dateStr: string): {day: number; phase: string} | null => {
+            const logDate = new Date(dateStr);
+            for (const cycle of cycles) {
+                const start = new Date(cycle.startDate);
+                const end = new Date(cycle.endDate);
+
+                if (logDate >= start && logDate <= end) {
+                    const day = differenceInCalendarDays(logDate, start) + 1;
+                    const phase = getPhaseForDay(day, resolvedAvgLength);
+                    return { day, phase };
+                }
+            }
+
+            const precedingCycle = [...cycles].reverse().find(c => new Date(c.startDate) <= logDate);
+            
+            if (precedingCycle) {
+                const day = differenceInCalendarDays(logDate, new Date(precedingCycle.startDate)) + 1;
+                if (day > 0 && day <= resolvedAvgLength) {
+                    return { day, phase: getPhaseForDay(day, resolvedAvgLength) };
+                }
+            }
+
+            return null;
+        };
+
         const symptomPhaseCount: Record<string, Record<string, number>> = {};
         const symptomDayCount: Record<string, Record<number, number>> = {};
 
@@ -153,28 +210,17 @@ export default function InsightsScreen() {
         logs.forEach(log => {
             if (!log.date) return;
 
-            const logDate = new Date(log.date);
-            const today = new Date();
+            const cyclePosition = getCycleDayForDate(log.date);
+            if (!cyclePosition) return;
 
-            const daysAgo = Math.floor(
-                (today.getTime() - logDate.getTime()) / (1000 * 60 * 60 * 24)
-            );
+            const { day: logCycleDay, phase: logPhase } = cyclePosition;
 
-            if (!logs.length) return;
-
-            const firstLogDate = logs[0].date;
-            const cycleStartDate = firstLogDate ? new Date(firstLogDate) : new Date();
-
-            const logCycleDay = Math.floor((new Date(log.date).getTime() - cycleStartDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-            if (logCycleDay <= 0) return;
         
             log.symptoms.forEach(sym => {
                 console.log(`Symptom: ${sym.name}, log date: ${log.date}, calculated cycle day: ${logCycleDay}`)
                 const name = sym.name;
 
-                // Phase tracking
-                const { currentPhase: logPhase } = getCycleInfo(convertToCycleLogs([log]));
-
+    
                 if (!symptomPhaseCount[name]) symptomPhaseCount[name] = {};
                 if (!symptomPhaseCount[name][logPhase || "Unknown"]) symptomPhaseCount[name][logPhase || "Unknown"] = 0;
 
@@ -194,23 +240,34 @@ export default function InsightsScreen() {
         Object.keys(symptomDayCount).forEach(symName => {
             const dayCounts = symptomDayCount[symName];
 
-            const mostCommonDay = Object.keys(dayCounts).reduce((a, b) =>
-                dayCounts[Number(a)] > dayCounts[Number(b)] ? a : b
-            );
+            const upcomingDays = [
+                ((cycleDay % resolvedAvgLength) + 1),
+                ((cycleDay + 1) % resolvedAvgLength) + 1,
+            ];
 
-            const day = Number(mostCommonDay);
+            upcomingDays.forEach(day => {
+                const count = dayCounts[day] ?? 0;
+                if (count < 2) return;
 
-            if (Math.abs(day - cycleDay) <= 2) {
                 const info = symptomInfo[symName] || {};
+
+                if (!info.shoppingList || info.shoppingList.length === 0) return;
+
+                const alreadyAdded = newInsights.some(i => i.type === `Prediction: ${symName}`);
+                if (alreadyAdded) return;
+           
 
                 newInsights.push({
                     type: `Prediction: ${symName}`,
-                    message: `You often experience ${symName} around day ${day} of your cycle (${currentPhase} phase) - consider buying:`,
+                    message: `Based on your history, you often experience ${symName} around day ${day} of your cycle. Consider preparing!`,
                     details: {
-                        shoppingList: Array.isArray(info.shoppingList) ? info.shoppingList : []
+                        description: info.description ?? "No description available.",
+                        tips: Array.isArray(info.tips) ? info.tips : [],
+                        phase: info.typicalCyclePhase ?? "Unknown phase",
+                        shoppingList: Array.isArray(info.shoppingList) ? info.shoppingList : [],
                     }
                 });
-            }
+            }); 
 
         });
   
@@ -245,7 +302,7 @@ export default function InsightsScreen() {
 
                         return {
                             name: nameStr,
-                            intensity: Number(sym.intensity) || 0,
+                            intensity: sym.intensity !== undefined ? Number(sym.intensity) : undefined,
                         };
                     });
 
