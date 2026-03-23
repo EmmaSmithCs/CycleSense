@@ -55,6 +55,13 @@ const getPhaseForDay = (cycleDay: number, avgLength: number): string => {
     return "Luteal";
 };
 
+const CARD_CONFIG = {
+    summary:    { emoji: "📋", accent: "#e91e8c", label: "Today's Log",   bg: "#fce4ec", border: "#f48fb1" },
+    symptom:    { emoji: "🌸", accent: "#e91e8c", label: "Tracked",       bg: "#fce4ec", border: "#f48fb1" },
+    intensity:  { emoji: "📈", accent: "#ef6c00", label: "Intensity",     bg: "#fff3e0", border: "#ffb74d" },
+    prediction: { emoji: "🔮", accent: "#5c6bc0", label: "Prediction",    bg: "#e8eaf6", border: "#9fa8da" },
+};
+
 
 export default function InsightsScreen() {
     const [logs, setLogs] = useState<DailyLog[]>([]);
@@ -367,151 +374,178 @@ export default function InsightsScreen() {
     
 
     return (
-        <View style={{ flex: 1, paddingTop: 50, backgroundColor: "#fff" }}>
+        <View style={{ flex: 1, paddingTop: 50, backgroundColor: "#fafafa" }}>
             <Text style={styles.title}>Your Insights</Text>
             <FlatList
                 data={insights}
-                keyExtractor={(item, index) => item.type +index}
-                contentContainerStyle={{ padding: 20 }}
-renderItem={({ item, index }) => {
-    const animation = animations.get(index) || new Animated.Value(0);
-    if (!animations.has(index)) animations.set(index, animation);
-    const isExpanded = expandedIndex === index;
-
-    if (item.cardType === "summary") {
-        const symptoms: { name: string; hasShoppingList: boolean }[] = item.details?.symptoms ?? [];
-        const preview = symptoms.slice(0, 4).map(s => s.name).join(", ");
-        const hasMore = symptoms.length > 4;
-
-        return (
-            <TouchableOpacity onPress={() => toggleCard(index)}>
-                <View style={[styles.insightCard, styles.summaryCard]}>
-                    <Text style={{ position: "absolute", top: 10, right: 10, fontSize: 18 }}>
-                        {isExpanded ? "▲" : "▼"}
-                    </Text>
-                    <Text style={styles.insightType}>📋 Today's Log</Text>
-                    <Text style={styles.insightMessage}>
-                        {isExpanded
-                            ? "All symptoms tracked today:"
-                            : `${preview}${hasMore ? ` +${symptoms.length - 4} more` : ""}`
-                        }
-                    </Text>
-
-                    <Animated.View
-                        style={{
-                            maxHeight: animation.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [0, 400],
-                            }),
-                            overflow: "hidden",
-                            opacity: animation,
-                            marginTop: 8,
-                        }}
-                    >
-                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 6 }}>
-                            {symptoms.map((sym, i) => (
-                                <View
-                                    key={i}
-                                    style={[
-                                        styles.symptomChip,
-                                        sym.hasShoppingList && styles.symptomChipHighlight,
-                                    ]}
-                                >
-                                    <Text style={{
-                                        fontSize: 12,
-                                        fontWeight: sym.hasShoppingList ? "bold" : "normal",
-                                        color: sym.hasShoppingList ? "#c2185b" : "#555",
-                                    }}>
-                                        {sym.name}
-                                    </Text>
+                keyExtractor={(item, index) => item.cardType + item.type + index}
+                contentContainerStyle={{ padding: 16, paddingBottom: 40 }}
+                renderItem={({ item, index }) => {
+                    const animation = animations.get(index) || new Animated.Value(0);
+                    if (!animations.has(index)) animations.set(index, animation);
+                    const isExpanded = expandedIndex === index;
+                    const config = CARD_CONFIG[item.cardType];
+ 
+                    // ── Summary card ─────────────────────────────────────────
+                    if (item.cardType === "summary") {
+                        const symptoms: { name: string; hasShoppingList: boolean }[] = item.details?.symptoms ?? [];
+                        const preview = symptoms.slice(0, 4).map(s => s.name).join("  ·  ");
+                        const hasMore = symptoms.length > 4;
+ 
+                        return (
+                            <TouchableOpacity onPress={() => toggleCard(index)} activeOpacity={0.85}>
+                                <View style={[styles.card, { backgroundColor: config.bg, borderColor: config.border }]}>
+                                    {/* Coloured left bar */}
+                                    <View style={[styles.leftBar, { backgroundColor: config.accent }]} />
+ 
+                                    <View style={styles.cardInner}>
+                                        {/* Header row */}
+                                        <View style={styles.cardHeader}>
+                                            <View style={styles.cardHeaderLeft}>
+                                                <Text style={styles.cardEmoji}>{config.emoji}</Text>
+                                                <View>
+                                                    <Text style={[styles.cardLabel, { color: config.accent }]}>TODAY'S LOG</Text>
+                                                    <Text style={styles.cardTitle}>{item.message}</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={[styles.chevron, { color: config.accent }]}>
+                                                {isExpanded ? "▲" : "▼"}
+                                            </Text>
+                                        </View>
+ 
+                                        {/* Preview row when collapsed */}
+                                        {!isExpanded && (
+                                            <Text style={styles.previewText} numberOfLines={1}>
+                                                {preview}{hasMore ? `  +${symptoms.length - 4} more` : ""}
+                                            </Text>
+                                        )}
+ 
+                                        {/* Expanded symptom chips */}
+                                        <Animated.View style={{
+                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 500] }),
+                                            overflow: "hidden",
+                                            opacity: animation,
+                                        }}>
+                                            <View style={styles.chipsRow}>
+                                                {symptoms.map((sym, i) => (
+                                                    <View
+                                                        key={i}
+                                                        style={[
+                                                            styles.chip,
+                                                            sym.hasShoppingList
+                                                                ? styles.chipHighlight
+                                                                : styles.chipPlain,
+                                                        ]}
+                                                    >
+                                                        <Text style={[
+                                                            styles.chipText,
+                                                            { fontWeight: sym.hasShoppingList ? "700" : "400",
+                                                              color: sym.hasShoppingList ? "#c2185b" : "#666" }
+                                                        ]}>
+                                                            {sym.name}
+                                                        </Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                            <Text style={styles.chipHint}>
+                                                ✦ Bold symptoms have recommendations below
+                                            </Text>
+                                        </Animated.View>
+                                    </View>
                                 </View>
-                            ))}
-                        </View>
-                        <Text style={{ fontSize: 11, color: "#999", marginTop: 8 }}>
-                            Bold symptoms have tips &amp; product recommendations below
-                        </Text>
-                    </Animated.View>
-                </View>
-            </TouchableOpacity>
-        );
-    }
-
-    return (
-        <TouchableOpacity onPress={() => toggleCard(index)}>
-            <Animated.View
-                style={[
-                    styles.insightCard,
-                    item.cardType === "intensity" && styles.intensityCard,
-                    item.cardType === "prediction" && styles.predictionCard,
-                    {
-                        transform: [
-                            {
-                                scale: animation.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [1, 1.02],
-                                }),
-                            },
-                        ]
+                            </TouchableOpacity>
+                        );
                     }
-                ]}>
-                <Text style={{ position: "absolute", top: 10, right: 10, fontSize: 18 }}>
-                    {isExpanded ? "▲" : "▼"}
-                </Text>
-                <Text style={styles.insightType}>{item.type}</Text>
-                <Text style={styles.insightMessage}>{item.message}</Text>
-
-                <Animated.View
-                    style={{
-                        maxHeight: animation.interpolate({
-                            inputRange: [0, 1],
-                            outputRange: [0, 300],
-                        }),
-                        overflow: "hidden",
-                        opacity: animation,
-                        marginTop: 10,
-                    }}
-                >
-                    {item.details?.description && (
-                        <Text style={{ marginTop: 5 }}>
-                            {item.details.description}
-                        </Text>
-                    )}
-
-                    {item.details?.phase && item.details.phase !== "Any" && (
-                        <Text style={{ marginTop: 5, fontStyle: "italic" }}>
-                            Phase: {item.details.phase}
-                        </Text>
-                    )}
-
-                    {(item.details?.tips ?? []).length > 0 && (
-                        <View style={{ marginTop: 5 }}>
-                            {(item.details?.tips ?? []).slice(0, 2).map((tip: string, idx: number) => (
-                                <Text key={idx} style={{ fontStyle: "italic" }}>
-                                    • {tip}
-                                </Text>
-                            ))}
-                        </View>
-                    )}
-
-                    {(item.details?.shoppingList ?? []).length > 0 && (
-                        <View style={{ marginTop: 5 }}>
-                            <Text style={{ fontWeight: "bold" }}>Recommended Products:</Text>
-                            {(item.details?.shoppingList ?? []).map((product: string, idx: number) => (
-                                <Text key={idx} style={{ fontStyle: "italic" }}>
-                                    • {product}
-                                </Text>
-                            ))}
-                        </View>
-                    )}
-                </Animated.View>
-            </Animated.View>
-        </TouchableOpacity>
-    );
-}}
-                ListEmptyComponent={<Text style={{ textAlign: "center" }}>No Insights</Text>}
+ 
+                    // ── Symptom / Intensity / Prediction cards ───────────────
+                    return (
+                        <TouchableOpacity onPress={() => toggleCard(index)} activeOpacity={0.85}>
+                            <Animated.View style={[
+                                styles.card,
+                                { backgroundColor: config.bg, borderColor: config.border },
+                                { transform: [{ scale: animation.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] }) }] }
+                            ]}>
+                                {/* Coloured left bar */}
+                                <View style={[styles.leftBar, { backgroundColor: config.accent }]} />
+ 
+                                <View style={styles.cardInner}>
+                                    {/* Header row */}
+                                    <View style={styles.cardHeader}>
+                                        <View style={styles.cardHeaderLeft}>
+                                            <Text style={styles.cardEmoji}>{config.emoji}</Text>
+                                            <View style={{ flex: 1, paddingRight: 24 }}>
+                                                <Text style={[styles.cardLabel, { color: config.accent }]}>
+                                                    {config.label.toUpperCase()}
+                                                    {item.cardType === "intensity" && item.details?.trend
+                                                        ? `  ${item.details.trend === "worsening" ? "↑" : "↓"}`
+                                                        : ""}
+                                                </Text>
+                                                <Text style={styles.cardTitle}>{item.type}</Text>
+                                                <Text style={styles.cardMessage}>{item.message}</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={[styles.chevron, { color: config.accent }]}>
+                                            {isExpanded ? "▲" : "▼"}
+                                        </Text>
+                                    </View>
+ 
+                                    {/* Expanded content */}
+                                    <Animated.View style={{
+                                        maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 350] }),
+                                        overflow: "hidden",
+                                        opacity: animation,
+                                    }}>
+                                        <View style={[styles.divider, { backgroundColor: config.border }]} />
+ 
+                                        {item.details?.description && (
+                                            <Text style={styles.expandDescription}>
+                                                {item.details.description}
+                                            </Text>
+                                        )}
+ 
+                                        {item.details?.phase && item.details.phase !== "Any" && (
+                                            <View style={styles.phaseRow}>
+                                                <Text style={[styles.phaseTag, { backgroundColor: config.border, color: config.accent }]}>
+                                                    {item.details.phase}
+                                                </Text>
+                                            </View>
+                                        )}
+ 
+                                        {(item.details?.tips ?? []).length > 0 && (
+                                            <View style={styles.tipsBlock}>
+                                                <Text style={[styles.sectionLabel, { color: config.accent }]}>Tips</Text>
+                                                {(item.details.tips as string[]).slice(0, 2).map((tip, idx) => (
+                                                    <Text key={idx} style={styles.tipText}>• {tip}</Text>
+                                                ))}
+                                            </View>
+                                        )}
+ 
+                                        {(item.details?.shoppingList ?? []).length > 0 && (
+                                            <View style={styles.shoppingBlock}>
+                                                <Text style={[styles.sectionLabel, { color: config.accent }]}>
+                                                    Recommended Products
+                                                </Text>
+                                                {(item.details.shoppingList as string[]).map((product, idx) => (
+                                                    <View key={idx} style={styles.productRow}>
+                                                        <Text style={[styles.productDot, { color: config.accent }]}>●</Text>
+                                                        <Text style={styles.productText}>{product}</Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                        )}
+                                    </Animated.View>
+                                </View>
+                            </Animated.View>
+                        </TouchableOpacity>
+                    );
+                }}
+                ListEmptyComponent={
+                    <Text style={{ textAlign: "center", color: "#aaa", marginTop: 40 }}>
+                        No insights yet — keep logging!
+                    </Text>
+                }
             />
         </View>
-    
     );
 }
 
@@ -524,54 +558,189 @@ const styles = StyleSheet.create({
     },
 
     title: {
-        fontSize: 24,
-        fontWeight: "bold",
+        fontSize: 26,
+        fontWeight: "800",
         textAlign: "center",
-        marginBottom: 20,
-    },  
-
-    insightCard: {
-        backgroundColor: "#fbe4ec",
-        padding: 15,
-        borderRadius: 12,
-        marginBottom: 15,
+        marginBottom: 16,
+        color: "#222",
+        letterSpacing: -0.5,
     },
 
-    summaryCard: {
-        backgroundColor: "#fce4ec",
+    card: {
+        flexDirection: "row",
+        borderRadius: 16,
+        marginBottom: 12,
         borderWidth: 1,
-        borderColor: "#f06292",
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 2},
+        shadowOpacity: 0.07,
+        shadowRadius: 6,
+        elevation: 2,
     },
 
-    intensityCard: {
-        backgroundColor: "#fff3e0"
+    leftBar: {
+        width: 4,
+        borderRadius: 0,
     },
 
-    predictionCard: {
-        backgroundColor: "#e8eaf6"
+    cardInner: {
+        flex: 1,
+        padding: 14,
     },
 
-    insightType: {
-        fontSize: 14,
-        fontWeight: "bold",
+    cardHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
     },
 
-    insightMessage: {
+    cardHeaderLeft: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        flex: 1,
+        gap: 10,
+    },
+
+    cardEmoji: {
+        fontSize: 22,
+        marginTop: 1,
+    },
+
+    cardLabel: {
+        fontSize: 10,
+        fontWeight: "700",
+        letterSpacing: 1,
+        marginBottom: 2,
+    },
+
+    cardTitle: {
+        fontSize: 15,
+        fontWeight: "700",
+        color: "#1a1a1a",
+    },
+
+    cardMessage: {
         fontSize: 12,
-        marginTop: 3,
+        color: "#666",
+        marginTop: 2,
+        lineHeight: 17,
     },
 
-    symptomChip: {
-        backgroundColor: "#ede7f6",
-        paddingHorizontal: 10,
+    chevron: {
+        fontSize: 13,
+        fontWeight: "600",
+        marginTop: 2,
+    },
+
+    previewText: {
+        fontSize: 12,
+        color: "#888",
+        marginTop: 6,
+        fontStyle: "italic",
+    },
+
+    chipsRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: 6,
+        marginTop: 10,
+    },
+
+    chip: {
         paddingVertical: 4,
+        paddingHorizontal: 10,
         borderRadius: 20,
     },
 
-    symptomChipHighlight: {
+    chipPlain: {
+        backgroundColor: "#f5f5f5",
+    },
+
+    chipHighlight: {
         backgroundColor: "#fce4ec",
         borderWidth: 1,
         borderColor: "#f48fb1",
     },
-});
 
+    chipText: {
+        fontSize: 11,
+    },
+
+    chipHint: {
+        fontSize: 10,
+        color: "#bbb",
+        marginTop: 8,
+        fontStyle: "italic",
+    },
+
+    divider: {
+        height: 1,
+        marginVertical: 10,
+        opacity: 0.5,
+    },
+
+    expandDescription: {
+        fontSize: 13,
+        color: "#444",
+        lineHeight: 19,
+    },
+
+    phaseRow: {
+        marginTop: 8,
+    },
+
+    phaseTag: {
+        alignSelf: "flex-start",
+        fontSize: 11,
+        fontWeight: "600",
+        paddingVertical: 3,
+        paddingHorizontal: 10,
+        borderRadius: 20,
+        overflow: "hidden",
+    },
+    
+    tipsBlock: {
+        marginTop: 10,
+    },
+
+    sectionLabel: {
+        fontSize: 11,
+        fontWeight: "700",
+        marginBottom: 4,
+        letterSpacing: 0.8,
+        textTransform: "uppercase",
+    },
+
+    tipText: {
+        fontSize: 13,
+        color: "#555",
+        lineHeight: 19,
+        fontStyle: "italic",
+    },
+
+    shoppingBlock: {
+        marginTop: 10,
+    },
+
+    productRow: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: 6,
+        marginBottom: 3,
+    },
+
+    productDot: {
+        fontSize: 8,
+        marginTop: 5,
+    },
+
+    productText: {
+        fontSize: 13,
+        color: "#444",
+        flex: 1,
+        lineHeight: 19,
+    },
+
+
+});
