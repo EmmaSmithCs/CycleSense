@@ -1,13 +1,14 @@
 import { auth, db } from '@/firebase/config';
 import { useFocusEffect } from '@react-navigation/native';
 import { differenceInCalendarDays, format } from 'date-fns';
+import { useRouter } from "expo-router";
 import { collection, getDocs } from 'firebase/firestore';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { symptomInfo } from '../data/symptomInfo';
 import { buildCycles, getCycleInfo } from '../utils/cyclePrediction';
 
-
+const router = useRouter();
 
 type SymptomEntry = {
     name: string;
