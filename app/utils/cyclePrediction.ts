@@ -141,3 +141,56 @@ export function getCycleProgress(cycles: Cycle[]) {
 
 }
 
+export function getCycleInfo(logs: DailyLog[]) {
+    const cycles = buildCycles(logs);
+    const progress = getCycleProgress(cycles);
+
+    if (cycles.length === 0) {
+        return {
+            cycleDay: null,
+            currentPhase: null,
+            avgLength: null,
+            cycleStartDate: null,
+        };
+    }
+
+    const today = new Date();
+    const lastCycle = cycles[cycles.length - 1];
+    const lastPeriodStart = new Date(lastCycle.startDate);
+
+    const cycleDay = differenceInCalendarDays(today, lastPeriodStart) + 1;
+    
+    const periodLength = lastCycle.cycleLength || 5;
+
+    const ovulationLength = 2;
+    const lutealLength = 14;
+    const follicularLength = Math.max(
+        (progress?.avgLength || 28) - periodLength - ovulationLength - lutealLength,
+        0
+    );
+
+    const phases = [
+        { name: "Menstrual", length: periodLength },
+        { name: "Follicular", length: follicularLength },
+        { name: "Ovulation", length: ovulationLength },
+        { name: "Luteal", length: lutealLength },
+    ];
+
+    let running = 0;
+    let currentPhase = "Luteal";
+
+    for (const phase of phases) {
+        running += phase.length;
+        if (cycleDay <= running) {
+            currentPhase = phase.name;
+            break;
+        }
+    }
+
+    return {
+        cycleDay,
+        currentPhase,
+        avgLength: progress?.avgLength || 28,
+        cycleStartDate: lastCycle.startDate,
+    };
+}

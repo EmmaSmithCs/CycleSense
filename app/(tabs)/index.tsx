@@ -10,8 +10,12 @@ import { db } from '../../firebase/config';
 import { saveDailyLog } from '../../firebase/dailyLogs';
 import { buildCycles, DailyLog, getCycleProgress, predictNextPeriod } from '../utils/cyclePrediction';
 
-const today = new Date();
+const intensitySymptoms = ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia", "Bloating", "Gas", "Diarrhoea", "Constipation"];
 
+type SymptomEntry = {
+  name: string;
+  intensity?: number; 
+}
 
 const symptomCategories = [
   {
@@ -73,7 +77,10 @@ const symptomCategories = [
 
 
 export default function DailyTrackingScreen() {
-  const [selectedDate, setSelectedDate] = useState(today);
+
+  const getToday = new Date();
+
+  const [selectedDate, setSelectedDate] = useState(getToday);
   const [modalVisible, setModalVisible] = useState(false);
   const [bleeding, setBleeding] = useState<"None" | "Light" | "Medium" | "Heavy">("None");
   const [symptoms, setSymptoms] = useState<string[]>([]);
@@ -86,6 +93,9 @@ export default function DailyTrackingScreen() {
   const [periodLength, setPeriodLength] = useState<number | null>(null);
   const [isBleedingToday, setIsBleedingToday] = useState(false);
   const [notes, setNotes] = useState<string>("");
+  const [symptomsWithIntensity, setSymptomsWithIntensity] = useState<SymptomEntry[]>([]);
+  const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
+  const [selectedIntensity, setSelectedIntensity] = useState<number>(3);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -114,7 +124,7 @@ export default function DailyTrackingScreen() {
 
   // 7 days for horisontal scroll
   const dateRange = Array.from({ length: 7 }, (_, i) => 
-    addDays(today, i - 3)
+    addDays(getToday, i - 3)
   );
 
   const toggleSymptom = (symptom: string) => {
@@ -172,7 +182,7 @@ export default function DailyTrackingScreen() {
       }
     }
 
-  setPeriodLength(actualPeriodLength);
+    setPeriodLength(actualPeriodLength);
 
     const todayStr = format(new Date(), "yyyy-MM-dd");
     const todayLog = logs.find(l => l.date === todayStr);
@@ -197,12 +207,22 @@ export default function DailyTrackingScreen() {
   const handleLog = async () => {
     if (!auth.currentUser) return;
 
+    const intensityNames = new Set(symptomsWithIntensity.map(s => s.name));
+
+    const finalSymptoms: SymptomEntry[] = [
+      ...symptomsWithIntensity,
+      ...symptoms
+        .filter(name => !intensityNames.has(name))
+        .map(name => ({ name })),
+    ];
+
     const logData: any = {
       bleeding,
-      symptoms,
+      symptoms: finalSymptoms,
     };
+
     if (notes?.trim()) {
-      logData.notes = notes;
+      logData.notes = notes.trim();
     }
 
     await saveDailyLog(auth.currentUser.uid, selectedDate, logData);
@@ -213,21 +233,50 @@ export default function DailyTrackingScreen() {
   const loadLogForDate = async (date: Date) => {
     if (!auth.currentUser) return;
 
+    setBleeding("None");
+    setSymptoms([]);
+    setSymptomsWithIntensity([]);
+    setNotes("");
+
     const dateStr = format(date, "yyyy-MM-dd");
     const logRef = doc(db, "users", auth.currentUser.uid, "dailyLogs", dateStr);
     const snap = await getDoc(logRef);
 
+
     if (snap.exists()) {
       const data = snap.data();
       setBleeding(data.bleeding || "None");
-      setSymptoms(data.symptoms || []);
       setNotes(data.notes || "");
+ 
+      const withIntensity: SymptomEntry[] = [];
+      const normalSymptoms: string[] = [];
+
+      (data.symptoms || []).forEach((s: any) => {
+        if (s?.intensity !== undefined) {
+          withIntensity.push({ name: s.name, intensity: s.intensity });
+        }
+      });
+
+      const intensityNames = new Set(withIntensity.map(s => s.name));
+
+      (data.symptoms || []).forEach((s: any) => {
+        if (s?.intensity === undefined) {
+          const name = s.name || s;
+          if (!intensityNames.has(name)) {
+            normalSymptoms.push(name);
+          }
+        }
+      });
+
+      setSymptomsWithIntensity(withIntensity);
+      setSymptoms(normalSymptoms);
     } else {
-      // Reset if no log exists for that day
       setBleeding("None");
       setSymptoms([]);
+      setSymptomsWithIntensity([]);
       setNotes("");
     }
+    
   };
 
   const closeModal = () => {
@@ -336,8 +385,8 @@ export default function DailyTrackingScreen() {
                 </TouchableOpacity>
               ))}
 
-              {Object.entries(symptomCategories).map(([category, categoryData]) => (
-              <View key={category} style={{ marginBottom: 15 }}>
+              {symptomCategories.map((categoryData) => (
+              <View key={categoryData.key} style={{ marginBottom: 15 }}>
                 <Text style={{ fontWeight: "bold", marginBottom: 5 }}>{categoryData.title}</Text>
 
                       <FlatList
@@ -345,27 +394,43 @@ export default function DailyTrackingScreen() {
                         data={categoryData.options}
                         keyExtractor={(item) => item}
                         showsHorizontalScrollIndicator={false}
-                        renderItem={({ item }) => (
-                          <TouchableOpacity
-                            onPress={() => toggleSymptom(item)}
-                            style={[
-                              styles.optionButton,
-                              {
-                                backgroundColor: symptoms.includes(item) ? "#f06292" : "#eee",
-                                marginRight: 8,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={{
-                                color: symptoms.includes(item) ? "#fff" : "#000",
-                                fontSize: 12,
+                        renderItem={({ item }) => {
+                          const hasIntensity = intensitySymptoms.includes(item);
+                          const isSelected = hasIntensity
+                            ? !!symptomsWithIntensity.find(s => s.name === item)
+                            : symptoms.includes(item);
+                          
+                          return (
+                            <TouchableOpacity
+                              onPress={() => {
+                                if (hasIntensity) {
+                                  setSelectedSymptom(item);
+                                  const entry = symptomsWithIntensity.find(s => s.name === item);
+                                  setSelectedIntensity(entry?.intensity || 3);
+                                } else {
+                                  toggleSymptom(item);
+                                }
                               }}
+                              style={[
+                                styles.optionButton,
+                                {
+
+                                  backgroundColor: isSelected ? "#f06292" : "#eee",
+                                  marginRight: 8,
+                                },
+                              ]}
                             >
-                              {item}
-                            </Text>
-                          </TouchableOpacity>
-                        )}
+                              <Text
+                                style={{
+                                  color: isSelected ? "#fff" : "#000",
+                                  fontSize: 12,
+                                }}
+                              >
+                                {item}
+                              </Text>
+                            </TouchableOpacity>
+                          );
+                        }}
                       />
                     </View>
                   ))}
@@ -388,6 +453,48 @@ export default function DailyTrackingScreen() {
 
               <Button title="Save Log" onPress={handleLog} />
               <Button title="Cancel" onPress={closeModal} />
+
+              <Modal visible={!!selectedSymptom} animationType="fade" transparent>
+                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000000aa" }}>
+                    <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 12, width: 250 }}>
+                      <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10 }}>{selectedSymptom} Intensity</Text>
+                      <Text style={{ fontSize: 14, marginBottom: 10 }}>Current Intensity: {selectedIntensity}</Text>
+
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
+                        {[1, 2, 3, 4, 5].map((level) => (
+                          <TouchableOpacity
+                            key={level}
+                            onPress={() => setSelectedIntensity(level)}
+                            style={{
+                              width: 40,
+                              height: 40,
+                              borderRadius: 20,
+                              backgroundColor: selectedIntensity === level ? "#f06292" : "#eee",
+                              justifyContent: "center",
+                              alignItems: "center",
+                            }}
+                          >
+                            <Text style={{ color: selectedIntensity === level ? "#fff" : "#000" }}>{level}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+
+                      <Button
+                        title="Save"
+                        onPress={() => {
+                          setSymptomsWithIntensity(prev => {
+                            const filtered = prev.filter(s => s.name !== selectedSymptom);
+                            return [...filtered, { name: selectedSymptom!, intensity: selectedIntensity }];
+                          });
+                          setSelectedSymptom(null);
+                        }}
+                      />
+                      <Button title="Cancel" onPress={() => setSelectedSymptom(null)} />
+
+                    </View>
+                </View>
+              </Modal>
+
             </ScrollView>
           </View>
       </SafeAreaView>
@@ -412,7 +519,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     borderRadius: 8,
     marginHorizontal: 5,
-    marginTop: 50,
   },
 
   cycleCircle: {
