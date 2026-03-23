@@ -25,7 +25,7 @@ type Insight = {
     type: string;
     message: string;
     details?: any;
-    cardType: "summary" | "symptom" | "intensity" | "prediction";
+    cardType: "summary" | "symptom" | "intensity" | "prediction" | "phase";
 };
 
 const getPhaseForDay = (cycleDay: number, avgLength: number): string => {
@@ -55,11 +55,35 @@ const getPhaseForDay = (cycleDay: number, avgLength: number): string => {
     return "Luteal";
 };
 
+const PHASE_DATA: Record<string, { emoji: string, description: string; symptoms: string[] } > = {
+    Menstrual: {
+        emoji: "🩸",
+        description: "Your body is shedding the uterine lining. Energy tends to be low — rest is your friend right now.",
+        symptoms: ["Cramps", "Headache", "Bloating", "Back pain", "Low mood", "Fatigue", "Nausea", "Low Libido", "Irritable", "Tender breasts", "Diarrhoea", "Gas"],
+    },
+    Follicular: {
+        emoji: "🌱",
+        description: "Oestrogen is rising and energy is returning. This is often the best-feeling phase of the cycle.",
+        symptoms: ["High energy", "Happy", "Energised", "High Libido", "Calm", "Acne", "Headache", "Increased appetite"],
+    },
+    Ovulation: {
+        emoji: "🥚",
+        description: "Your body is releasing an egg. Oestrogen peaks and you may feel at your most sociable and confident.",
+        symptoms: ["Ovulation pain", "Tender breasts", "Bloating", "High Libido", "Energised", "Acne", "Egg white discharge", "Back pain"],
+    },
+    Luteal: {
+        emoji: "💤",
+        description: "Progesterone rises then falls. PMS symptoms are common in the second half of this phase.",
+        symptoms: ["Mood swings", "Bloating", "Tender breasts", "Irritable", "Anxious", "Low mood", "Insomnia", "Chocolate cravings", "Headache", "Exhausted", "Low Libido", "Acne"],
+    },
+};
+
 const CARD_CONFIG = {
     summary:    { emoji: "📋", accent: "#e91e8c", label: "Today's Log",   bg: "#fce4ec", border: "#f48fb1" },
     symptom:    { emoji: "🌸", accent: "#e91e8c", label: "Tracked",       bg: "#fce4ec", border: "#f48fb1" },
     intensity:  { emoji: "📈", accent: "#ef6c00", label: "Intensity",     bg: "#fff3e0", border: "#ffb74d" },
     prediction: { emoji: "🔮", accent: "#5c6bc0", label: "Prediction",    bg: "#e8eaf6", border: "#9fa8da" },
+    phase:      { emoji: "🌿", accent: "#2e7d32", label: "Cycle Phase",   bg: "#e8f5e9", border: "#a5d6a7" },
 };
 
 
@@ -301,7 +325,35 @@ export default function InsightsScreen() {
 
         });
 
-        const order = {summary: 0, symptom: 1, intensity: 2, prediction: 3};
+        const phaseData = PHASE_DATA[currentPhase];
+        if (phaseData) {
+            const alreadyLoggedNames = new Set(todayLog.symptoms.map(s => s.name));
+            const dateSeed = parseInt(format(new Date(), 'yyyMMdd'));
+            const available = phaseData.symptoms.filter(s =>!alreadyLoggedNames.has(s));
+
+            const shuffled = [...available].sort((a, b) => {
+                const hashA = (a.charCodeAt(0) + dateSeed) % 97;
+                const hashB = (b.charCodeAt(0) + dateSeed) % 97;
+                return hashA-hashB;
+            });
+
+            const picked = shuffled.slice(0, Math.min(4, shuffled.length));
+
+            if (picked.length > 0) {
+                newInsights.push({
+                    cardType: "phase",
+                    type: `${currentPhase} Phase - Day ${cycleDay}`,
+                    message: phaseData.description,
+                    details: {
+                        phaseEmoji: phaseData.emoji,
+                        symptoms: picked,
+                    }
+                });
+            }
+            
+        }
+
+        const order = {summary: 0, symptom: 1, intensity: 2, prediction: 3, phase: 4};
         newInsights.sort((a, b) => order[a.cardType] - order[b.cardType]);
 
         return newInsights;
@@ -456,8 +508,58 @@ export default function InsightsScreen() {
                             </TouchableOpacity>
                         );
                     }
+
+                    if (item.cardType === "phase") {
+                        const phaseSymptoms: string[] = item.details?.symptoms ?? [];
  
-                    // ── Symptom / Intensity / Prediction cards ───────────────
+                        return (
+                            <TouchableOpacity onPress={() => toggleCard(index)} activeOpacity={0.85}>
+                                <View style={[styles.card, { backgroundColor: config.bg, borderColor: config.border }]}>
+                                    <View style={[styles.leftBar, { backgroundColor: config.accent }]} />
+                                    <View style={styles.cardInner}>
+                                        <View style={styles.cardHeader}>
+                                            <View style={styles.cardHeaderLeft}>
+                                                <Text style={styles.cardEmoji}>{item.details?.phaseEmoji ?? config.emoji}</Text>
+                                                <View style={{ flex: 1, paddingRight: 24 }}>
+                                                    <Text style={[styles.cardLabel, { color: config.accent }]}>PHASE INSIGHT</Text>
+                                                    <Text style={styles.cardTitle}>{item.type}</Text>
+                                                </View>
+                                            </View>
+                                            <Text style={[styles.chevron, { color: config.accent }]}>
+                                                {isExpanded ? "▲" : "▼"}
+                                            </Text>
+                                        </View>
+ 
+                                        {/* Always show description */}
+                                        <Text style={styles.phaseDescription}>{item.message}</Text>
+ 
+                                        <Animated.View style={{
+                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 300] }),
+                                            overflow: "hidden",
+                                            opacity: animation,
+                                        }}>
+                                            <View style={[styles.divider, { backgroundColor: config.border }]} />
+                                            <Text style={[styles.sectionLabel, { color: config.accent }]}>
+                                                Common this phase
+                                            </Text>
+                                            <View style={styles.chipsRow}>
+                                                {phaseSymptoms.map((sym, i) => (
+                                                    <View key={i} style={[styles.chip, styles.phaseChip]}>
+                                                        <Text style={[styles.chipText, { color: config.accent, fontWeight: "600" }]}>
+                                                            {sym}
+                                                        </Text>
+                                                    </View>
+                                                ))}
+                                            </View>
+                                            <Text style={styles.chipHint}>✦ Tap a symptom in the log screen to track it</Text>
+                                        </Animated.View>
+                                    </View>
+                                </View>
+                            </TouchableOpacity>
+                        );
+                    }
+ 
+                    
                     return (
                         <TouchableOpacity onPress={() => toggleCard(index)} activeOpacity={0.85}>
                             <Animated.View style={[
@@ -741,6 +843,20 @@ const styles = StyleSheet.create({
         flex: 1,
         lineHeight: 19,
     },
+
+    phaseDescription: {
+        fontSize: 13,
+        color: "#444",
+        lineHeight: 19,
+        marginTop: 6,
+        marginBottom: 4,
+    },
+    
+    phaseChip: {
+        backgroundColor: "#c8e6c9",
+        borderWidth: 1,
+        borderColor: "#a5d6a7"
+    }
 
 
 });
