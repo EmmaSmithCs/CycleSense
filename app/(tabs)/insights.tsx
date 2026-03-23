@@ -181,56 +181,65 @@ export default function InsightsScreen() {
 
 
         // Intensity trends
-        todayLog.symptoms.forEach(sym => {
-            const pastLogs = logs
-                .filter(l => l.date !== todayLog.date)
-                .filter(l => l.symptoms.some(s => s.name === sym.name));
-
-            const intensity = Number(sym.intensity) || 0;
-
-            if (pastLogs.length && sym.intensity !== undefined) {
-                const avgPastIntensity = 
-                    pastLogs.reduce((acc, l) => {
-                        const s = l.symptoms.find(s => s.name === sym.name);
-                        return acc + (s?.intensity || 0);
-                    } , 0) / pastLogs.length;
-            
-                
-
-                if (sym.intensity > avgPastIntensity) {
-                    const info = symptomInfo[sym.name];
-                    newInsights.push({
-                        cardType: "intensity",
-                        type: 'Intensity: ' + sym.name,
-                        message: `${sym.name} seems to be worsening (intensity ${sym.intensity} vs avg ${avgPastIntensity.toFixed(1)}).`,
-                        details: {
-                            description: info?.description ?? "No description available.",
-                            tips: Array.isArray(info?.tips) ? info.tips : [],
-                            phase: info?.typicalCyclePhase ?? "Unknown phase",
-                            shoppingList: Array.isArray(info?.shoppingList) ? info.shoppingList : [],
-                        } 
-                    });
-                } else if (sym.intensity < avgPastIntensity) {
-                    const info = symptomInfo[sym.name];
-                    newInsights.push({
-                        cardType: "intensity",
-                        type: 'Intensity: ' + sym.name,
-                        message: `${sym.name} is improving (intensity ${sym.intensity} vs avg ${avgPastIntensity.toFixed(1)}).`,
-                        details: {
-                            description: info?.description ?? "No description available.",
-                            tips: Array.isArray(info?.tips) ? info.tips : [],
-                            phase: info?.typicalCyclePhase ?? "Unknown phase",
-                            shoppingList: Array.isArray(info?.shoppingList) ? info.shoppingList : [],
-                        } 
-                    });
-                }
-            
+        const cycles = buildCycles(cycleLogs);
+ 
+        // Get the date range covering the last 3 completed cycles (excluding current)
+        const completedCycles = cycles.slice(0, -1); // exclude the current in-progress cycle
+        const last3Cycles = completedCycles.slice(-3);
+ 
+        // Build a Set of all dates that fall within the last 3 cycles
+        const last3CycleDates = new Set<string>();
+        last3Cycles.forEach(cycle => {
+            const start = new Date(cycle.startDate);
+            const end = new Date(cycle.endDate);
+            let current = new Date(start);
+            while (current <= end) {
+                last3CycleDates.add(format(current, 'yyyy-MM-dd'));
+                current.setDate(current.getDate() + 1);
             }
         });
+ 
+        todayLog.symptoms.forEach(sym => {
+            // Only consider logs that fall within the last 3 cycles
+            const recentPastLogs = logs.filter(l => {
+                if (!l.date || l.date === todayLog.date) return false;
+                return last3CycleDates.has(l.date) && l.symptoms.some(s => s.name === sym.name);
+            });
+ 
+            // Need at least 2 data points from recent cycles to be meaningful
+            if (recentPastLogs.length < 2 || sym.intensity === undefined) return;
+ 
+            const avgRecentIntensity =
+                recentPastLogs.reduce((acc, l) => {
+                    const s = l.symptoms.find(s => s.name === sym.name);
+                    return acc + (s?.intensity || 0);
+                }, 0) / recentPastLogs.length;
+ 
+            const info = symptomInfo[sym.name];
+            const isWorsening = sym.intensity > avgRecentIntensity;
+            const isImproving = sym.intensity < avgRecentIntensity;
+ 
+            if (isWorsening || isImproving) {
+                newInsights.push({
+                    cardType: "intensity",
+                    type: sym.name,
+                    message: isWorsening
+                        ? `${sym.name} is higher than your recent average (${sym.intensity} vs avg ${avgRecentIntensity.toFixed(1)} over last 3 cycles)`
+                        : `${sym.name} is lower than your recent average (${sym.intensity} vs avg ${avgRecentIntensity.toFixed(1)} over last 3 cycles)`,
+                    details: {
+                        trend: isWorsening ? "worsening" : "improving",
+                        description: info?.description ?? "No description available.",
+                        tips: Array.isArray(info?.tips) ? info.tips : [],
+                        phase: info?.typicalCyclePhase ?? "Unknown phase",
+                        shoppingList: Array.isArray(info?.shoppingList) ? info.shoppingList : [],
+                    }
+                });
+            }
+        });
+        
 
         // Predicted phase insights
 
-        const cycles = buildCycles(cycleLogs);
         const getCycleDayForDate = (dateStr: string): {day: number; phase: string} | null => {
             const logDate = new Date(dateStr);
             for (const cycle of cycles) {
