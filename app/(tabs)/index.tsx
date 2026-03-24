@@ -1,6 +1,6 @@
 import { auth } from '@/firebase/config';
 import { addDays, differenceInCalendarDays, format } from 'date-fns';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Button, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -9,6 +9,8 @@ import CycleProgressRing from '../../components/CycleProgressRing';
 import { db } from '../../firebase/config';
 import { saveDailyLog } from '../../firebase/dailyLogs';
 import { buildCycles, DailyLog, getCycleProgress, predictNextPeriod } from '../utils/cyclePrediction';
+
+const router = useRouter();
 
 const intensitySymptoms = ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia", "Bloating", "Gas", "Diarrhoea", "Constipation"];
 
@@ -298,7 +300,7 @@ export default function DailyTrackingScreen() {
         <Text style={styles.helloText}>
           {getGreeting()}, {userName}!
         </Text>
-        <TouchableOpacity>
+        <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
           <Text style={styles.profileIcon}>👤</Text>
         </TouchableOpacity>
       </View>

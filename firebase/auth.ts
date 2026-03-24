@@ -7,8 +7,8 @@ import {
     signOut,
     User
 } from "firebase/auth";
+import { doc, serverTimestamp, setDoc } from "firebase/firestore";
 import { auth, db } from "./config";
-import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 
 // Sign up a new user
 export async function signup(email: string, password: string): Promise<User> {
