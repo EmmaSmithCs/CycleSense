@@ -1,38 +1,54 @@
 // app/_layout.tsx
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { onAuthStateChanged, User } from "firebase/auth";
+import { doc, onSnapshot } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import 'react-native-reanimated';
-import { auth } from "../firebase/config";
+import { auth, db } from "../firebase/config";
 
 export default function RootLayout() {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [onboarded, setOnboarded] = useState<boolean | null>(null);
   const router = useRouter();
   const segments = useSegments();
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+    const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
       console.log("Auth state changed:", firebaseUser?.email ?? "no user");
       setUser(firebaseUser);
+      if (!firebaseUser) {
+        setOnboarded(null);
+        setLoading(false);
+      }
+    });
+    return unsubscribeAuth;
+  }, []);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubscribeDoc = onSnapshot(doc(db, "users", user.uid), (snap) => {
+      setOnboarded(snap.data()?.onboarded ?? false);
       setLoading(false);
     });
-    return unsubscribe;
-  }, []);
+
+    return unsubscribeDoc;
+  }, [user]);
 
   useEffect(() => {
     if (loading) return;
 
     const inAuthGroup = segments[0] === "(auth)";
 
-    if (user && inAuthGroup) {
-      // User is signed in but on auth screens — send to app
-      router.replace("/(tabs)");
-    } else if (!user && !inAuthGroup) {
-      // User is not signed in but trying to access app — send to login
+    if (!user && !inAuthGroup) {
       router.replace("/(auth)/login");
+    } else if (user && !onboarded && segments[1] !== "onboarding") {
+      router.replace("/(auth)/onboarding");
+    } else if (user && onboarded && inAuthGroup) {
+      router.replace("/(tabs)");
     }
-  }, [user, loading, segments]);
+  }, [user, loading, onboarded, segments]);
 
   if (loading) {
     return null;
