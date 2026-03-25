@@ -1,5 +1,6 @@
 // app/(tabs)/profile.tsx
 
+import { useTheme } from '@/context/ThemeContext';
 import { logout } from '@/firebase/auth';
 import { auth, db, storage } from '@/firebase/config';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,13 +16,15 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-
 // Types
 type Section = "none" | "name" | "password" | "download";
 
 export default function ProfileScreen() {
     const router = useRouter();
     const user = auth.currentUser;
+
+    const { theme } = useTheme();
+    const c = theme.colors;
 
     // Profile data
     const [userName, setUserName] = useState('');
@@ -108,7 +111,7 @@ export default function ProfileScreen() {
             await updateDoc(doc(db, 'users', user.uid), { name: newName.trim()});
             setUserName(newName.trim());
             setActiveSection('none');
-            Alert.alert("Saved", "Your naem has been updated.");
+            Alert.alert("Saved", "Your name has been updated.");
         } catch {
             Alert.alert("Error!", "Failed to save name.");
         }
@@ -246,7 +249,7 @@ export default function ProfileScreen() {
     const handleDeleteAccount = () => {
         Alert.alert(
             "Delete account",
-            "This will permanently delete all your cycle logs and symptoms. Your account will remain active. This cannot be undone.",
+            "This will permanently delete all your cycle logs and symptoms. This cannot be undone.",
             [
                 { text: "Cancel", style: "cancel" },
                 {
@@ -300,17 +303,17 @@ export default function ProfileScreen() {
     
     if (loading) {
         return (
-            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-                <ActivityIndicator size="large" color="#f06292" />
+            <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: c.background }}>
+                <ActivityIndicator size="large" color={c.primary} />
             </View>
         );
     }
 
     return (
-        <SafeAreaView style={styles.container}>
+        <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
             <ScrollView showsVerticalScrollIndicator={false}>
                 {/* Title */}
-                <Text style={styles.pageTitle}>Profile</Text>
+                <Text style={[styles.pageTitle, { color: c.text }]}>Profile</Text>
 
                 {/* Avatar */}
                 <View style={styles.avatarSection}>
@@ -318,42 +321,40 @@ export default function ProfileScreen() {
                         {photoURL ? (
                             <Image source={{ uri: photoURL + '&t=' + Date.now()}} style={styles.avatar} />
                         ) : (
-                            <View style={styles.avatarPlaceholder}>
-                                <Text style={styles.avatarInitial}>
+                            <View style={[styles.avatarPlaceholder, { backgroundColor: c.primaryLight }]}>
+                                <Text style={[styles.avatarInitial, { color: c.primary }]}>
                                     {userName ? userName[0].toUpperCase() : '?'}
                                 </Text>
                             </View>
                         )}
-                        <View style={styles.avatarEditBadge}>
+                        <View style={[styles.avatarEditBadge, { backgroundColor: c.primary }]}>
                             <Ionicons name="camera" size={14} color="#fff" />
                         </View>
                     </TouchableOpacity>
-                    <Text style={styles.userName}>{userName || "Your Name"} </Text>
-                    <Text style={styles.userEmail}>{user?.email}</Text>
+                    <Text style={[styles.userName, { color: c.text }]}>{userName || "Your Name"} </Text>
+                    <Text style={[styles.userEmail, { color: c.textSecondary }]}>{user?.email}</Text>
                     {joinedDate && (
-                        <Text style={styles.joinedDate}>Member since {joinedDate}</Text>
+                        <Text style={[styles.joinedDate, { color: c.textMuted }]}>Member since {joinedDate}</Text>
                     )}
                 </View>
 
                 {/* Edit name*/}
-                <TouchableOpacity style={styles.row} onPress={() => toggle("name")}>
-                    <Ionicons name="person-outline" size={20} color="f06292" style={styles.rowIcon} />
-                    <Text style={styles.rowLabel}>Edit name</Text>
-                    <Ionicons
-                        name={activeSection === "name" ? "chevron-up" : "chevron-down"}
-                        size={18} color="#ccc"
-                    />
+                <TouchableOpacity style={[styles.row, { borderBottomColor: c.border }]} onPress={() => toggle("name")}>
+                    <Ionicons name="person-outline" size={20} color={c.primary} style={styles.rowIcon} />
+                    <Text style={[styles.rowLabel, { color: c.text }]}>Edit name</Text>
+                    <Ionicons name={activeSection === "name" ? "chevron-up" : "chevron-down"} size={18} color={c.textMuted} />
                 </TouchableOpacity>
                 {activeSection === "name" && (
-                    <View style={styles.expandedCard}>
+                    <View style={[styles.expandedCard, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
                         <TextInput
                             style={styles.input}
                             placeholder='New name'
                             value={newName}
                             onChangeText={setNewName}
+                            placeholderTextColor={c.textMuted}
                         />
                         <TouchableOpacity
-                            style={styles.actionButton}
+                            style={[styles.actionButton, { backgroundColor: c.primary }]}
                             onPress={handleSaveName}
                             disabled={savingName}
                         >
@@ -365,16 +366,16 @@ export default function ProfileScreen() {
                 )}
 
                 {/* Password change*/}
-                <TouchableOpacity style={styles.row} onPress={() => toggle("password")}>
-                    <Ionicons name="lock-closed-outline" size={20} color="#f06292" style={styles.rowIcon} />
-                    <Text style={styles.rowLabel}>Change password</Text>
+                <TouchableOpacity style={[styles.row, { borderBottomColor: c.border }]} onPress={() => toggle("password")}>
+                    <Ionicons name="lock-closed-outline" size={20} color={c.primary} style={styles.rowIcon} />
+                    <Text style={[styles.rowLabel, { color: c.text }]}>Change password</Text>
                     <Ionicons 
                         name={activeSection === "password" ? "chevron-up" : "chevron-down"}
-                        size = {18} color="#ccc"
+                        size = {18} color={c.textMuted}
                     />
                 </TouchableOpacity>
                 {activeSection === "password" && (
-                    <View style={styles.expandedCard}>
+                    <View style={[styles.expandedCard, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
                         <TextInput
                             style={styles.input}
                             placeholder='Current password'
@@ -388,6 +389,7 @@ export default function ProfileScreen() {
                             secureTextEntry
                             value={newPassword}
                             onChangeText={setNewPassword}
+                            placeholderTextColor={c.textMuted}
                         />
                         <TextInput  
                             style={styles.input}
@@ -395,9 +397,10 @@ export default function ProfileScreen() {
                             secureTextEntry
                             value={confirmPassword}
                             onChangeText={setConfirmPassword}
+                            placeholderTextColor={c.textMuted}
                         />
                         <TouchableOpacity
-                            style={styles.actionButton}
+                            style={[styles.actionButton, { backgroundColor: c.primary }]}
                             onPress={handleChangePassword}
                             disabled={savingPassword}
                         >
@@ -409,17 +412,17 @@ export default function ProfileScreen() {
                 )}
 
                 {/* Download data */}
-                <TouchableOpacity style={styles.row} onPress={() => toggle('download')}>
-                    <Ionicons name="download-outline" size={20} color="#f06292" style={styles.rowIcon} />
-                    <Text style={styles.rowLabel}>Download my data</Text>
+                <TouchableOpacity style={[styles.row, { borderBottomColor: c.border }]} onPress={() => toggle('download')}>
+                    <Ionicons name="download-outline" size={20} color={c.primary} style={styles.rowIcon} />
+                    <Text style={[styles.rowLabel, { color: c.text }]}>Download my data</Text>
                     <Ionicons
                         name ={activeSection === "download" ? "chevron-up" : "chevron-down"}
-                        size={18} color="#ccc"
+                        size={18} color={c.textMuted}
                     />
                 </TouchableOpacity>
                 {activeSection === "download" && (
-                    <View style={styles.expandedCard}>
-                        <Text style={styles.expandedLabel}>Select time range:</Text>
+                    <View style={[styles.expandedCard, { backgroundColor: c.surface, borderBottomColor: c.border }]}>
+                        <Text style={[styles.expandedLabel, { color: c.textMuted }]}>Select time range:</Text>
                         <View style={styles.rangeRow}>
                             {(['week', 'month', '3months'] as const).map(r => (
                                 <TouchableOpacity
@@ -427,12 +430,14 @@ export default function ProfileScreen() {
                                     onPress={() => setDownloadRange(r)}
                                     style={[
                                         styles.rangeButton,
-                                        downloadRange === r && styles.rangeButtonActive,
+                                        { borderColor: c.border },
+                                        downloadRange === r && { borderColor: c.primary, backgroundColor: c.primaryLight },
                                     ]}
                                 >
                                     <Text style={[
                                         styles.rangeButtonText,
-                                        downloadRange === r && styles.rangeButtonTextActive,
+                                        { color: c.textMuted },
+                                        downloadRange === r && { color: c.primary, fontWeight: "600" },
                                     ]}>
                                         {r === "week" ? "Last 7 days" : r === "month" ? "Last month" : "Last 3 months"}
                                     </Text>
@@ -440,7 +445,7 @@ export default function ProfileScreen() {
                             ))}
                         </View>
                         <TouchableOpacity
-                            style={styles.actionButton}
+                            style={[styles.actionButton, { backgroundColor: c.primary }]}
                             onPress={handleDownloadPDF}
                             disabled={generatingPDF}
                         >
@@ -452,40 +457,40 @@ export default function ProfileScreen() {
                 )}
 
                 {/* Gamification PLACEHOLDER */}
-                <View style={[styles.row, styles.rowDisabled]}>
-                    <Ionicons name="trophy-outline" size={20} color="#ccc" style={styles.rowIcon} />
+                <View style={[styles.row, styles.rowDisabled, { borderBottomColor: c.border }]}>
+                    <Ionicons name="trophy-outline" size={20} color={c.textMuted} style={styles.rowIcon} />
                     <View style={{ flex: 1}}>
-                        <Text style={styles.comingSoon}>Coming Soon!</Text>
+                        <Text style={[styles.comingSoon, { color: c.textMuted }]}>Coming Soon!</Text>
                     </View>
-                    <View style={styles.comingSoonBadge}>
+                    <View style={[styles.comingSoonBadge, { backgroundColor: c.surface }]}>
                         <Text style={styles.comingSoonBadgeText}>🔒</Text>
                     </View>
                 </View>
 
                 {/* DANGEROUS Things */}
 
-                <Text style={styles.sectionHeader}>Account</Text>
+                <Text style={[styles.sectionHeader, { color: c.textMuted }]}>Account</Text>
 
                 {/* Sign out */}
 
-                <TouchableOpacity style={styles.row} onPress={handleSignOut}>
-                    <Ionicons name="log-out-outline" size={20} color="#f06292" style={styles.rowIcon}/>
-                    <Text style={styles.rowLabel}>Sign out</Text>
-                    <Ionicons name="chevron-forward" size={18} color="#ccc" />
+                <TouchableOpacity style={[styles.row, { borderBottomColor: c.border }]} onPress={handleSignOut}>
+                    <Ionicons name="log-out-outline" size={20} color={c.primary} style={styles.rowIcon}/>
+                    <Text style={[styles.rowLabel, { color: c.text }]}>Sign out</Text>
+                    <Ionicons name="chevron-forward" size={18} color={c.textMuted} />
                 </TouchableOpacity>
 
                 {/* Delete data */}
-                <TouchableOpacity style={[styles.row, styles.dangerRow]} onPress={handleDeleteAllData}>
-                    <Ionicons name="nuclear-outline" size={20} color="#e53935" style={styles.rowIcon} />
-                    <Text style={[styles.rowLabel, {color: "#e53935" }]}>Delete all my data</Text>
-                    <Ionicons name="chevron-forward" size={18} color="e53935" />
+                <TouchableOpacity style={[styles.row, { borderBottomColor: c.errorBackground }]} onPress={handleDeleteAllData}>
+                    <Ionicons name="nuclear-outline" size={20} color={c.error} style={styles.rowIcon} />
+                    <Text style={[styles.rowLabel, {color: c.error }]}>Delete all my data</Text>
+                    <Ionicons name="chevron-forward" size={18} color={c.error} />
                 </TouchableOpacity>
 
                 {/* BIG BAD Delete Account */}
-                <TouchableOpacity style={[styles.row, styles.dangerRow]} onPress={handleDeleteAccount}>
-                    <Ionicons name="trash-outline" size={20} color="#e53935" style={styles.rowIcon}/>
-                    <Text style={[styles.rowLabel, {color: "#e53935"}]}>Delete account</Text>
-                    <Ionicons name="chevron-forward" size={18} color="e53935"/>
+                <TouchableOpacity style={[styles.row, { borderBottomColor: c.errorBackground }]} onPress={handleDeleteAccount}>
+                    <Ionicons name="trash-outline" size={20} color={c.error} style={styles.rowIcon}/>
+                    <Text style={[styles.rowLabel, {color: c.error}]}>Delete account</Text>
+                    <Ionicons name="chevron-forward" size={18} color={c.error}/>
                 </TouchableOpacity>
 
                 <View style={ { height: 40} } />
@@ -500,7 +505,6 @@ const styles = StyleSheet.create({
 
     container: {
         flex: 1,
-        backgroundColor: "#fff"
     },
 
     pageTitle: {
@@ -533,7 +537,6 @@ const styles = StyleSheet.create({
         width: 90,
         height: 90,
         borderRadius: 45,
-        backgroundColor: "#fce4ec",
         justifyContent: "center",
         alignItems: "center",
     },
@@ -548,31 +551,26 @@ const styles = StyleSheet.create({
         position: "absolute",
         bottom: 0,
         right: 0,
-        backgroundColor: "#f06292",
         borderRadius: 12,
         width: 24,
         height: 24,
         justifyContent: "center",
         alignItems: "center",
         borderWidth: 2,
-        borderColor: "#fff",
     },
 
     userName: {
         fontSize: 20,
         fontWeight: "700",
-        color: "#fff",
     },
 
     userEmail: {
         fontSize: 14,
-        color: "#999",
         marginTop: 2,
     },
 
     joinedDate: {
         fontSize: 12,
-        color: "#bbb",
         marginTop: 4,
     },
 
@@ -584,7 +582,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 20,
         paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: "#f5f5f5",
     },
 
     rowDisabled: {
@@ -598,41 +595,30 @@ const styles = StyleSheet.create({
     rowLabel: {
         flex: 1,
         fontSize: 16,
-        color: "#333",
-    },
-
-    dangerRow: {
-        borderBottomColor: "#fce4ec",
     },
 
     // Expanded related
 
     expandedCard: {
-        backgroundColor: "#fafafa",
         paddingHorizontal: 16,
         paddingVertical: 16,
         borderBottomWidth: 1,
-        borderBottomColor: "#f5f5f5",
     },
 
     expandedLabel: {
         fontSize: 13,
-        color: "#888",
         marginBottom: 10,
     },
 
     input: {
         borderWidth: 1,
-        borderColor: "#eee",
         borderRadius: 10,
         padding: 12,
         marginBottom: 10,
         fontSize: 15,
-        backgroundColor: "#fff",
     },
 
     actionButton: {
-        backgroundColor: "#f06292",
         borderRadius: 10,
         padding: 13,
         alignItems: "center",
@@ -658,13 +644,7 @@ const styles = StyleSheet.create({
         paddingVertical: 8,
         borderRadius: 8,
         borderWidth: 1,
-        borderColor: "#eee",
         alignItems: "center",
-    },
-
-    rangeButtonActive: {
-        borderColor: "#f06292",
-        backgroundColor: "#fce4ec",
     },
 
     rangeButtonText: {
@@ -672,21 +652,15 @@ const styles = StyleSheet.create({
         color: "#888",
     },
 
-    rangeButtonTextActive: {
-        color: "#f06292",
-        fontWeight: "600",
-    },
 
     // Gamification related (placeholder)
 
     comingSoon: {
         fontSize: 11,
-        color: "#bbb",
         marginTop: 2,
     },
 
     comingSoonBadge: {
-        backgroundColor: "#f5f5f5",
         borderRadius: 8,
         paddingHorizontal: 8,
         paddingVertical: 4,
@@ -700,7 +674,6 @@ const styles = StyleSheet.create({
     sectionHeader: {
         fontSize: 12,
         fontWeight: "600",
-        color: "#aaa",
         paddingHorizontal: 20,
         paddingTop: 24,
         paddingBottom: 8,

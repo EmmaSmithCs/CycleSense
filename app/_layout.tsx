@@ -1,4 +1,5 @@
 // app/_layout.tsx
+import { ThemeProvider } from '@/context/ThemeContext';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, onSnapshot } from 'firebase/firestore';
@@ -55,9 +56,11 @@ export default function RootLayout() {
   }
 
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="(auth)" />
-    </Stack>
+    <ThemeProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="(auth)" />
+      </Stack>
+    </ThemeProvider>
   );
 }

@@ -1,3 +1,4 @@
+import { useTheme } from '@/context/ThemeContext';
 import { auth, db } from '@/firebase/config';
 import { useFocusEffect } from '@react-navigation/native';
 import { format } from 'date-fns';
@@ -7,7 +8,6 @@ import { ActivityIndicator, Alert, Button, FlatList, Modal, ScrollView, StyleShe
 import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { saveDailyLog } from '../../firebase/dailyLogs';
-
 
 const intensitySymptoms = ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia", "Bloating", "Gas", "Diarrhoea", "Constipation"];
 
@@ -86,6 +86,9 @@ type DailyLog = {
 
 
 export default function HistoryScreen() {
+    const { theme } = useTheme();
+    const c = theme.colors;
+
     const [markedDates, setMarkedDates] = useState<any>({});
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
     const [log, setLog] = useState<DailyLog | null>(null);
@@ -112,7 +115,7 @@ export default function HistoryScreen() {
         case "None":
           return "#66ccff";
         default:
-          return "#f06292";
+          return c.primary;
       }
     };
 
@@ -136,7 +139,7 @@ export default function HistoryScreen() {
       marked[todayStr] = {
         ...(marked[todayStr] || {}),
         selected: true,
-        selectedColor: "#ba68c8",
+        selectedColor: c.primary,
       };
 
       setMarkedDates(marked);
@@ -275,15 +278,15 @@ export default function HistoryScreen() {
 
     if (loading) {
         return (
-            <View style={styles.centered}>
-                <ActivityIndicator size="large" color="#f06292" />
+            <View style={[styles.centered, { backgroundColor: c.background }]}>
+                <ActivityIndicator size="large" color={c.primary} />
             </View>
         );
     }
 
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.title}>History</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
+        <Text style={[styles.title, { color: c.text }]}>History</Text>
 
         <Calendar
           key={calendarKey}
@@ -291,34 +294,36 @@ export default function HistoryScreen() {
           markedDates={markedDates}
           onDayPress={onDayPress}
           theme={{
-            todayTextColor: "#ba68c8",
-            arrowColor: "#f06292",
-            selectedDayBackgroundColor: "#f06292",
+            calendarBackground: c.card,
+            dayTextColor: c.text,
+            monthTextColor: c.text,
+            todayTextColor: c.primary,
+            arrowColor: c.primary,
+            selectedDayBackgroundColor: c.primary,
+            dotColor: c.primary,
+            textDisabledColor: c.textMuted,
           }}
         />
 
         <Modal visible={modalVisible} animationType="slide" transparent statusBarTranslucent onRequestClose={closeModal}>
           <SafeAreaView style={styles.modalBackground}>
-             <View style={styles.modalCard}>
+             <View style={[styles.modalCard, { backgroundColor: c.card }]}>
                 <ScrollView 
                   contentContainerStyle={styles.modalScrollContent}
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}>
-                  <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10 }}>
+                  <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10, color: c.text }}>
                     Log for {selectedDate || format(new Date(), "yyyy-MM-dd")}
                   </Text>
 
-                  <Text style={{ marginBottom: 5 }}>Bleeding:</Text>
+                  <Text style={{ marginBottom: 5, color: c.textSecondary }}>Bleeding:</Text>
                   {["None", "Light", "Medium", "Heavy"].map((level) => (
                     <TouchableOpacity
                       key={level}
                       onPress={() => setBleeding(level as any)}
-                      style={[
-                        styles.optionButton,
-                        { backgroundColor: bleeding === level ? "#f06292" : "#eee" },
-                      ]}
+                      style={[styles.optionButton, { backgroundColor: bleeding === level ? c.primary : c.surface }]}
                     >
-                      <Text style={{ color: bleeding === level ? "#fff" : "#000" }}>
+                      <Text style={{ color: bleeding === level ? "#fff" : c.text }}>
                         {level}
                       </Text>
                     </TouchableOpacity>
@@ -326,7 +331,7 @@ export default function HistoryScreen() {
 
                   {symptomCategories.map((category) => (
                     <View key={category.key} style={{ marginTop: 15 }}>
-                      <Text style={{ fontWeight: "bold", marginBottom: 5 }}>{category.title}</Text>
+                      <Text style={{ fontWeight: "bold", marginBottom: 5, color: c.text }}>{category.title}</Text>
 
                       <FlatList
                         horizontal
@@ -350,17 +355,11 @@ export default function HistoryScreen() {
 }}
                               style={[
                                 styles.optionButton,
-                                {
-                                  backgroundColor: isSelected ? "#f06292" : "#eee",
-                                  marginRight: 8,
-                                },
+                                { backgroundColor: isSelected ? c.primary : c.surface, marginRight: 8 },
                               ]}
                             >
                               <Text
-                                style={{
-                                  color: isSelected ? "#fff" : "#000",
-                                  fontSize: 12,
-                                }}
+                                style={{ color: isSelected ? "#fff" : c.text, fontSize: 12 }}
                               >
                                 {item}
                               </Text>
@@ -371,7 +370,7 @@ export default function HistoryScreen() {
                     </View>
                   ))}
 
-                  <Text style={{ marginTop: 10, marginBottom: 5 }}>Notes:</Text>
+                  <Text style={{ marginTop: 10, marginBottom: 5, color: c.textSecondary }}>Notes:</Text>
                   <TextInput
                     value={notes}
                     onChangeText={setNotes}
@@ -379,17 +378,19 @@ export default function HistoryScreen() {
                     multiline
                     style={{
                       borderWidth: 1,
-                      borderColor: "#ddd",
+                      borderColor: c.border,
                       borderRadius: 8,
                       padding: 10,
                       minHeight: 80,
                       textAlignVertical: "top",
+                      color: c.text,
+                      backgroundColor: c.surface,
                     }}
                   />
                     
-                  <Button title="Save Log" onPress={handleLog} />
-                  <Button title="Delete Log" onPress={handleDeleteLog} color="#ff4d4d" />
-                  <Button title="Cancel" onPress={closeModal} />
+                  <Button title="Save Log" onPress={handleLog} color={c.primary}/>
+                  <Button title="Delete Log" onPress={handleDeleteLog} color={c.error} />
+                  <Button title="Cancel" onPress={closeModal} color={c.textMuted} />
 
                   {selectedSymptom && (
                     <Modal 
@@ -401,9 +402,9 @@ export default function HistoryScreen() {
                       onRequestClose={() => setSelectedSymptom(null)}
                       >
                       <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000000aa" }}>
-                        <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 12, width: 250 }}>
-                          <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10 }}>{selectedSymptom} Intensity</Text>
-                          <Text style={{ fontSize: 14, marginBottom: 10 }}>Current Intensity: {selectedIntensity}</Text>
+                        <View style={{ backgroundColor: c.card, padding: 20, borderRadius: 12, width: 250 }}>
+                          <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10, color: c.text  }}>{selectedSymptom} Intensity</Text>
+                          <Text style={{ fontSize: 14, marginBottom: 10, color: c.textSecondary }}>Current Intensity: {selectedIntensity}</Text>
 
                           <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
                             {[1, 2, 3, 4, 5].map((level) => (
@@ -411,21 +412,19 @@ export default function HistoryScreen() {
                                 key={level}
                                 onPress={() => setSelectedIntensity(level)}
                                 style={{
-                                  width: 40,
-                                  height: 40,
-                                  borderRadius: 20,
-                                  backgroundColor: selectedIntensity === level ? "#f06292" : "#eee",
-                                  justifyContent: "center",
-                                  alignItems: "center",
+                                  width: 40, height: 40, borderRadius: 20,
+                                  backgroundColor: selectedIntensity === level ? c.primary : c.surface,
+                                  justifyContent: "center", alignItems: "center",
                                 }}
                               >
-                                <Text style={{ color: selectedIntensity === level ? "#fff" : "#000" }}>{level}</Text>
+                                <Text style={{ color: selectedIntensity === level ? "#fff" : c.text }}> {level}</Text>
                               </TouchableOpacity>
                             ))}
                           </View>
 
                           <Button
                             title="Save"
+                            color={c.primary}
                             onPress={() => {
                               setSymptomsWithIntensity(prev => {
                                 const filtered = prev.filter(s => s.name !== selectedSymptom);
@@ -434,7 +433,7 @@ export default function HistoryScreen() {
                               setSelectedSymptom(null);
                             }}
                           />
-                          <Button title="Cancel" onPress={() => setSelectedSymptom(null)} />
+                          <Button title="Cancel" onPress={() => setSelectedSymptom(null)} color={c.textMuted} />
 
                         </View>
                       </View>
@@ -454,7 +453,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 20,
-    backgroundColor: "#fff",
   },
 
   title: {
@@ -470,7 +468,6 @@ const styles = StyleSheet.create({
   },
 
   modalContainer: {
-    backgroundColor: "#fff",
     marginHorizontal: 20,
     padding: 20,
     borderRadius: 10,
@@ -497,7 +494,6 @@ const styles = StyleSheet.create({
 
   categoryCard: {
     width: 180,
-    backgroundColor: "#fafafa",
     padding: 10,
     borderRadius: 12,
     marginRight: 12,
@@ -518,7 +514,6 @@ const styles = StyleSheet.create({
   },
 
   modalCard: {
-    backgroundColor: "#fff",
     marginHorizontal: 20,
     borderRadius: 12,
     maxHeight: "90%",

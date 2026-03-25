@@ -1,3 +1,4 @@
+import { useTheme } from '@/context/ThemeContext';
 import { auth } from '@/firebase/config';
 import { addDays, differenceInCalendarDays, format } from 'date-fns';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -79,6 +80,8 @@ const symptomCategories = [
 
 
 export default function DailyTrackingScreen() {
+  const { theme } = useTheme();
+  const c = theme.colors;
 
   const getToday = new Date();
 
@@ -287,17 +290,17 @@ export default function DailyTrackingScreen() {
 
   if (loading || loadingCycleData) {
     return (
-      <View style={{ flex: 1, justifyContent: "center", alignItems: "center" }}>
-        <ActivityIndicator size="large" color="#f06292" />
+      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.background }}>
+        <ActivityIndicator size="large" color={c.primary} />
       </View>
     );
   }
 
   return (
-    <View style={{ flex: 1, paddingTop: 50, backgroundColor: "#fff" }}>
+    <View style={{ flex: 1, paddingTop: 50, backgroundColor: c.background }}>
       {/* Top Bar */}
       <View style={styles.topBar}>
-        <Text style={styles.helloText}>
+        <Text style={[styles.helloText, { color: c.text }]}>
           {getGreeting()}, {userName}!
         </Text>
         <TouchableOpacity onPress={() => router.push("/(tabs)/profile")}>
@@ -323,10 +326,10 @@ export default function DailyTrackingScreen() {
               }}
               style={[
                 styles.dateButton,
-                { backgroundColor: isSelected ? "#f06292" : "#eee", height: 70, justifyContent: "center", alignItems: "center" },
+                { backgroundColor: isSelected ? c.primary : c.surface, height: 70, justifyContent: "center", alignItems: "center" },
               ]}
             >
-              <Text style={{ color: isSelected ? "#fff" : "#000" }}>
+              <Text style={{ color: isSelected ? "#fff" : c.text }}>
                 {format(item, "dd MMM")}
               </Text>
             </TouchableOpacity>
@@ -344,18 +347,18 @@ export default function DailyTrackingScreen() {
             isBleedingToday={isBleedingToday}
           />
         ) : (
-          <Text style={{ textAlign: "center" }}>Between cycles</Text>
+          <Text style={{ textAlign: "center", color: c.textSecondary }}>Between cycles</Text>
         )}
       </View>
 
       <TouchableOpacity
-        style={styles.fab}
+        style={[styles.fab, { backgroundColor: c.primary }]}
         onPress={async () => {
           await loadLogForDate(selectedDate);
           setModalVisible(true);
         }}
       >
-        <Text style={{ color: "#fff", fontSize: 28 }}>＋</Text>
+        <Text style={{ color: "#fff", fontSize: 28 }}>+</Text>
       </TouchableOpacity>
 
             
@@ -363,25 +366,25 @@ export default function DailyTrackingScreen() {
       {/* Log Modal */}
       <Modal visible={modalVisible} animationType="slide" transparent>
         <SafeAreaView style={styles.modalBackground}>
-          <View style={styles.modalCard}>
+          <View style={[styles.modalCard, { backgroundColor: c.card }]}>
             <ScrollView 
                 style={styles.modalScrollContent}
                 showsVerticalScrollIndicator={false}>
-              <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10 }}>
+              <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10, color: c.text }}>
                 Log for {format(selectedDate, "yyyy-MM-dd")}
               </Text>
 
-              <Text style={{ marginBottom: 5 }}>Bleeding:</Text>
+              <Text style={{ marginBottom: 5, color: c.textSecondary }}>Bleeding:</Text>
               {["None", "Light", "Medium", "Heavy"].map((level) => (
                 <TouchableOpacity
                   key={level}
                   onPress={() => setBleeding(level as any)}
                   style={[
                     styles.optionButton,
-                    { backgroundColor: bleeding === level ? "#f06292" : "#eee" },
+                    { backgroundColor: bleeding === level ? c.primary : c.surface },
                   ]}
                 >
-                  <Text style={{ color: bleeding === level ? "#fff" : "#000" }}>
+                  <Text style={{ color: bleeding === level ? "#fff" : c.text }}>
                     {level}
                   </Text>
                 </TouchableOpacity>
@@ -389,7 +392,7 @@ export default function DailyTrackingScreen() {
 
               {symptomCategories.map((categoryData) => (
               <View key={categoryData.key} style={{ marginBottom: 15 }}>
-                <Text style={{ fontWeight: "bold", marginBottom: 5 }}>{categoryData.title}</Text>
+                <Text style={{ fontWeight: "bold", marginBottom: 5, color: c.text }}>{categoryData.title}</Text>
 
                       <FlatList
                         horizontal
@@ -415,16 +418,12 @@ export default function DailyTrackingScreen() {
                               }}
                               style={[
                                 styles.optionButton,
-                                {
-
-                                  backgroundColor: isSelected ? "#f06292" : "#eee",
-                                  marginRight: 8,
-                                },
+                                { backgroundColor: isSelected ? c.primary : c.surface, marginRight: 8 },
                               ]}
                             >
                               <Text
                                 style={{
-                                  color: isSelected ? "#fff" : "#000",
+                                  color: isSelected ? "#fff" : c.text,
                                   fontSize: 12,
                                 }}
                               >
@@ -437,30 +436,33 @@ export default function DailyTrackingScreen() {
                     </View>
                   ))}
 
-                  <Text style={{ marginTop: 10, marginBottom: 5 }}>Notes:</Text>
+                  <Text style={{ marginTop: 10, marginBottom: 5, color: c.textSecondary }}>Notes:</Text>
                   <TextInput
                     value={notes}
                     onChangeText={setNotes}
                     placeholder="Anything you noticed today?"
+                    placeholderTextColor={c.textMuted}
                     multiline
                     style={{
                       borderWidth: 1,
-                      borderColor: "#ddd",
+                      borderColor: c.border,
                       borderRadius: 8,
                       padding: 10,
                       minHeight: 80,
                       textAlignVertical: "top",
+                      color: c.text,
+                      backgroundColor: c.surface,
                     }}
                   />
 
-              <Button title="Save Log" onPress={handleLog} />
-              <Button title="Cancel" onPress={closeModal} />
+              <Button title="Save Log" onPress={handleLog} color={c.primary} />
+              <Button title="Cancel" onPress={closeModal} color={c.textMuted} />
 
               <Modal visible={!!selectedSymptom} animationType="fade" transparent>
                 <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000000aa" }}>
-                    <View style={{ backgroundColor: "#fff", padding: 20, borderRadius: 12, width: 250 }}>
-                      <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10 }}>{selectedSymptom} Intensity</Text>
-                      <Text style={{ fontSize: 14, marginBottom: 10 }}>Current Intensity: {selectedIntensity}</Text>
+                    <View style={{ backgroundColor: c.card, padding: 20, borderRadius: 12, width: 250 }}>
+                      <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10, color: c.text }}>{selectedSymptom} Intensity</Text>
+                      <Text style={{ fontSize: 14, marginBottom: 10, color: c.textSecondary }}>Current Intensity: {selectedIntensity}</Text>
 
                       <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
                         {[1, 2, 3, 4, 5].map((level) => (
@@ -471,18 +473,19 @@ export default function DailyTrackingScreen() {
                               width: 40,
                               height: 40,
                               borderRadius: 20,
-                              backgroundColor: selectedIntensity === level ? "#f06292" : "#eee",
+                              backgroundColor: selectedIntensity === level ? c.primary : c.surface,
                               justifyContent: "center",
                               alignItems: "center",
                             }}
                           >
-                            <Text style={{ color: selectedIntensity === level ? "#fff" : "#000" }}>{level}</Text>
+                            <Text style={{ color: selectedIntensity === level ? "#fff" : c.text }}>{level}</Text>
                           </TouchableOpacity>
                         ))}
                       </View>
 
                       <Button
                         title="Save"
+                        color={c.primary}
                         onPress={() => {
                           setSymptomsWithIntensity(prev => {
                             const filtered = prev.filter(s => s.name !== selectedSymptom);
@@ -491,7 +494,7 @@ export default function DailyTrackingScreen() {
                           setSelectedSymptom(null);
                         }}
                       />
-                      <Button title="Cancel" onPress={() => setSelectedSymptom(null)} />
+                      <Button title="Cancel" onPress={() => setSelectedSymptom(null)} color={c.textMuted} />
 
                     </View>
                 </View>
@@ -563,19 +566,6 @@ const styles = StyleSheet.create({
     marginBottom: 5,
   },
 
-  categoryCard: {
-    width: 180,
-    backgroundColor: "#fafafa",
-    padding: 10,
-    borderRadius: 12,
-    marginRight: 12,
-  },
-
-  categoryTitle: {
-    fontWeight: "bold",
-    marginBottom: 6,
-    fontSize: 14,
-  },
 
   symptomChip: {
     paddingVertical: 6,
@@ -592,14 +582,12 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: "#f06292",
     justifyContent: "center",
     alignItems: "center",
     elevation: 4,
   },
 
   modalCard: {
-    backgroundColor: "#fff",
     marginHorizontal: 20,
     borderRadius: 12,
     maxHeight: "90%",

@@ -1,3 +1,4 @@
+import { useTheme } from '@/context/ThemeContext';
 import React from 'react';
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, G, Path } from "react-native-svg";
@@ -10,6 +11,9 @@ type Props = {
 };
 
 export default function CycleProgressRing({ cycleDay, avgLength, periodLength, isBleedingToday }: Props) {
+  const { theme } = useTheme();
+  const c = theme.colors;
+
   const size = 220;
   const strokeWidth = 15;
   const radius = (size - strokeWidth) / 2;
@@ -24,7 +28,7 @@ export default function CycleProgressRing({ cycleDay, avgLength, periodLength, i
   );
 
   const phases = [
-    { name: "Period", length: periodLength, color: "#f06292" },
+    { name: "Period", length: periodLength, color: c.primary },
     { name: "Follicular", length: follicularLength, color: "#ffd54f" },
     { name: "Ovulation", length: ovulationLength, color: "#ff9800" },
     { name: "Luteal", length: lutealLength, color: "#9575cd" },
@@ -54,7 +58,7 @@ export default function CycleProgressRing({ cycleDay, avgLength, periodLength, i
     })?.name || "Luteal";
 
   const currentPhaseColor =
-    phases.find(p => p.name === currentPhase)?.color || "#333";
+    phases.find(p => p.name === currentPhase)?.color || c.text;
 
   return (
     <View style={styles.container}>
@@ -85,7 +89,7 @@ export default function CycleProgressRing({ cycleDay, avgLength, periodLength, i
             cy={dotY}
             r={8}
             fill={currentPhaseColor}
-            stroke="#fff"
+            stroke={c.card}
             strokeWidth={2}
           />
         </G>
@@ -93,31 +97,31 @@ export default function CycleProgressRing({ cycleDay, avgLength, periodLength, i
 
       {/* Center text */}
       <View style={styles.centerText}>
-        <Text style={styles.dayText}>Day {cycleDay}</Text>
-        <Text style={styles.subText}>of {avgLength}</Text>
-        <Text style={styles.phaseText}>You’re in your</Text>
+        <Text style={[styles.dayText, { color: c.text }]}>Day {cycleDay}</Text>
+        <Text style={[styles.subText, { color: c.textSecondary }]}>of {avgLength}</Text>
+        <Text style={[styles.phaseText, { color: c.textSecondary }]}>You're in your</Text>
         <Text style={[styles.phaseBold, { color: currentPhaseColor }]}>
           {currentPhase}
         </Text>
-        <Text style={styles.phaseText}>phase</Text>
+        <Text style={[styles.phaseText, { color: c.textSecondary }]}>phase</Text>
       </View>
 
       {/* Legend */}
       <View style={styles.legend}>
-        <LegendDot color="#f06292" label="Period" />
-        <LegendDot color="#ffd54f" label="Follicular" />
-        <LegendDot color="#ff9800" label="Ovulation" />
-        <LegendDot color="#9575cd" label="Luteal" />
+        <LegendDot color={c.primary} label="Period" textColor={c.textSecondary} />
+        <LegendDot color="#ffd54f" label="Follicular" textColor={c.textSecondary} />
+        <LegendDot color="#ff9800" label="Ovulation" textColor={c.textSecondary} />
+        <LegendDot color="#9575cd" label="Luteal" textColor={c.textSecondary} />
       </View>
     </View>
   );
 }
 
-function LegendDot({ color, label }: { color: string; label: string }) {
+function LegendDot({ color, label, textColor }: { color: string; label: string; textColor: string }) {
   return (
     <View style={styles.legendItem}>
       <View style={[styles.legendColor, { backgroundColor: color }]} />
-      <Text style={styles.legendLabel}>{label}</Text>
+      <Text style={[styles.legendLabel, { color: textColor }]}>{label}</Text>
     </View>
   );
 }
@@ -127,43 +131,50 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center",
   },
+
   centerText: {
     position: "absolute",
     alignItems: "center",
   },
+
   dayText: {
     fontSize: 22,
     fontWeight: "bold",
   },
+
   subText: {
     fontSize: 14,
-    color: "#666",
   },
+
   phaseText: {
     fontSize: 12,
-    color: "#666",
   },
+
   phaseBold: {
     fontSize: 14,
     fontWeight: "bold",
   },
+
   legend: {
     flexDirection: "row",
     justifyContent: "space-between",
     width: 220,
     marginTop: 12,
   },
+
   legendItem: {
     alignItems: "center",
   },
+
   legendColor: {
     width: 10,
     height: 10,
     borderRadius: 5,
     marginBottom: 4,
   },
+
   legendLabel: {
     fontSize: 11,
-    color: "#555",
   },
+
 });

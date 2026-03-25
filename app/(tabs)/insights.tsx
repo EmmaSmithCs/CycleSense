@@ -1,14 +1,13 @@
+import { useTheme } from '@/context/ThemeContext';
 import { auth, db } from '@/firebase/config';
 import { useFocusEffect } from '@react-navigation/native';
 import { differenceInCalendarDays, format } from 'date-fns';
-import { useRouter } from "expo-router";
 import { collection, getDocs } from 'firebase/firestore';
 import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { symptomInfo } from '../data/symptomInfo';
 import { buildCycles, getCycleInfo } from '../utils/cyclePrediction';
 
-const router = useRouter();
 
 type SymptomEntry = {
     name: string;
@@ -79,16 +78,19 @@ const PHASE_DATA: Record<string, { emoji: string, description: string; symptoms:
     },
 };
 
-const CARD_CONFIG = {
-    summary:    { emoji: "📋", accent: "#e91e8c", label: "Today's Log",   bg: "#fce4ec", border: "#f48fb1" },
-    symptom:    { emoji: "🌸", accent: "#e91e8c", label: "Tracked",       bg: "#fce4ec", border: "#f48fb1" },
-    intensity:  { emoji: "📈", accent: "#ef6c00", label: "Intensity",     bg: "#fff3e0", border: "#ffb74d" },
-    prediction: { emoji: "🔮", accent: "#5c6bc0", label: "Prediction",    bg: "#e8eaf6", border: "#9fa8da" },
-    phase:      { emoji: "🌿", accent: "#2e7d32", label: "Cycle Phase",   bg: "#e8f5e9", border: "#a5d6a7" },
-};
-
 
 export default function InsightsScreen() {
+    const { theme } = useTheme();
+    const c = theme.colors;
+
+    const CARD_CONFIG = {
+        summary:    { emoji: "📋", accent: c.cardInsightBorder, label: "Today's Log",   bg: c.cardInsight, border: c.cardInsightBorder },
+        symptom:    { emoji: "🌸", accent: c.cardInsightBorder, label: "Tracked",       bg: c.cardInsight, border: c.cardInsightBorder },
+        intensity:  { emoji: "📈", accent: c.cardInsightBorder, label: "Intensity",     bg: c.cardIntensity, border: c.cardIntensityBorder },
+        prediction: { emoji: "🔮", accent: c.cardPredictionBorder, label: "Prediction",    bg: c.cardPrediction, border: c.cardPredictionBorder },
+        phase:      { emoji: "🌿", accent: c.cardPhaseBorder, label: "Cycle Phase",   bg: c.cardPhase, border: c.cardPhaseBorder },
+    };
+
     const [logs, setLogs] = useState<DailyLog[]>([]);
     const [insights, setInsights] = useState<Insight[]>([]);
     const [loading, setLoading] = useState(true);
@@ -427,8 +429,8 @@ export default function InsightsScreen() {
 
     if (loading) {
         return (
-            <View style={styles.center}>
-                <ActivityIndicator size="large" color="#f06292" />
+            <View style={[styles.center, { backgroundColor: c.background }]}>
+                <ActivityIndicator size="large" color={c.primary} />
             </View>
         );
     }
@@ -436,8 +438,8 @@ export default function InsightsScreen() {
     
 
     return (
-        <View style={{ flex: 1, paddingTop: 50, backgroundColor: "#fafafa" }}>
-            <Text style={styles.title}>Your Insights</Text>
+        <View style={{ flex: 1, paddingTop: 50, backgroundColor: c.background }}>
+            <Text style={[styles.title, { color: c.text }]}>Your Insights</Text>
             <FlatList
                 data={insights}
                 keyExtractor={(item, index) => item.cardType + item.type + index}
@@ -467,7 +469,7 @@ export default function InsightsScreen() {
                                                 <Text style={styles.cardEmoji}>{config.emoji}</Text>
                                                 <View>
                                                     <Text style={[styles.cardLabel, { color: config.accent }]}>TODAY'S LOG</Text>
-                                                    <Text style={styles.cardTitle}>{item.message}</Text>
+                                                    <Text style={[styles.cardTitle, { color: c.text }]}>{item.message}</Text>
                                                 </View>
                                             </View>
                                             <Text style={[styles.chevron, { color: config.accent }]}>
@@ -477,7 +479,7 @@ export default function InsightsScreen() {
  
                                         {/* Preview row when collapsed */}
                                         {!isExpanded && (
-                                            <Text style={styles.previewText} numberOfLines={1}>
+                                            <Text style={[styles.previewText, { color: c.textMuted }]} numberOfLines={1}>
                                                 {preview}{hasMore ? `  +${symptoms.length - 4} more` : ""}
                                             </Text>
                                         )}
@@ -492,24 +494,17 @@ export default function InsightsScreen() {
                                                 {symptoms.map((sym, i) => (
                                                     <View
                                                         key={i}
-                                                        style={[
-                                                            styles.chip,
-                                                            sym.hasShoppingList
-                                                                ? styles.chipHighlight
-                                                                : styles.chipPlain,
-                                                        ]}
+                                                        style={[styles.chip, sym.hasShoppingList
+                                                            ? [styles.chipHighlight, { backgroundColor: c.primaryLight, borderColor: config.accent }]
+                                                            : [styles.chipPlain, { backgroundColor: c.surface }]]}
                                                     >
-                                                        <Text style={[
-                                                            styles.chipText,
-                                                            { fontWeight: sym.hasShoppingList ? "700" : "400",
-                                                              color: sym.hasShoppingList ? "#c2185b" : "#666" }
-                                                        ]}>
+                                                        <Text style={[styles.chipText, { fontWeight: sym.hasShoppingList ? "700" : "400", color: sym.hasShoppingList ? config.accent : c.textSecondary }]}>
                                                             {sym.name}
                                                         </Text>
                                                     </View>
                                                 ))}
                                             </View>
-                                            <Text style={styles.chipHint}>
+                                            <Text style={[styles.chipHint, { color: c.textMuted }]}>
                                                 ✦ Bold symptoms have recommendations below
                                             </Text>
                                         </Animated.View>
@@ -532,7 +527,7 @@ export default function InsightsScreen() {
                                                 <Text style={styles.cardEmoji}>{item.details?.phaseEmoji ?? config.emoji}</Text>
                                                 <View style={{ flex: 1, paddingRight: 24 }}>
                                                     <Text style={[styles.cardLabel, { color: config.accent }]}>PHASE INSIGHT</Text>
-                                                    <Text style={styles.cardTitle}>{item.type}</Text>
+                                                    <Text style={[styles.cardTitle, { color: c.text }]}>{item.type}</Text>
                                                 </View>
                                             </View>
                                             <Text style={[styles.chevron, { color: config.accent }]}>
@@ -541,7 +536,7 @@ export default function InsightsScreen() {
                                         </View>
  
                                         {/* Always show description */}
-                                        <Text style={styles.phaseDescription}>{item.message}</Text>
+                                        <Text style={[styles.phaseDescription, { color: c.textSecondary }]}>{item.message}</Text>
  
                                         <Animated.View style={{
                                             maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 300] }),
@@ -554,14 +549,14 @@ export default function InsightsScreen() {
                                             </Text>
                                             <View style={styles.chipsRow}>
                                                 {phaseSymptoms.map((sym, i) => (
-                                                    <View key={i} style={[styles.chip, styles.phaseChip]}>
+                                                    <View key={i} style={[styles.chip, { backgroundColor: c.card, borderWidth: 1, borderColor: config.accent }]}>
                                                         <Text style={[styles.chipText, { color: config.accent, fontWeight: "600" }]}>
                                                             {sym}
                                                         </Text>
                                                     </View>
                                                 ))}
                                             </View>
-                                            <Text style={styles.chipHint}>✦ Tap a symptom in the log screen to track it</Text>
+                                            <Text style={[styles.chipHint, { color: c.textMuted }]}>✦ Tap a symptom in the log screen to track it</Text>
                                         </Animated.View>
                                     </View>
                                 </View>
@@ -592,8 +587,8 @@ export default function InsightsScreen() {
                                                         ? `  ${item.details.trend === "worsening" ? "↑" : "↓"}`
                                                         : ""}
                                                 </Text>
-                                                <Text style={styles.cardTitle}>{item.type}</Text>
-                                                <Text style={styles.cardMessage}>{item.message}</Text>
+                                                <Text style={[styles.cardTitle, { color: c.text }]}>{item.type}</Text>
+                                                <Text style={[styles.cardMessage, { color: c.textSecondary }]}>{item.message}</Text>
                                             </View>
                                         </View>
                                         <Text style={[styles.chevron, { color: config.accent }]}>
@@ -610,14 +605,14 @@ export default function InsightsScreen() {
                                         <View style={[styles.divider, { backgroundColor: config.border }]} />
  
                                         {item.details?.description && (
-                                            <Text style={styles.expandDescription}>
+                                            <Text style={[styles.expandDescription, { color: c.textSecondary }]}>
                                                 {item.details.description}
                                             </Text>
                                         )}
  
                                         {item.details?.phase && item.details.phase !== "Any" && (
                                             <View style={styles.phaseRow}>
-                                                <Text style={[styles.phaseTag, { backgroundColor: config.border, color: config.accent }]}>
+                                                <Text style={[styles.phaseTag, { backgroundColor: config.border, color: c.background }]}>
                                                     {item.details.phase}
                                                 </Text>
                                             </View>
@@ -627,7 +622,7 @@ export default function InsightsScreen() {
                                             <View style={styles.tipsBlock}>
                                                 <Text style={[styles.sectionLabel, { color: config.accent }]}>Tips</Text>
                                                 {(item.details.tips as string[]).slice(0, 2).map((tip, idx) => (
-                                                    <Text key={idx} style={styles.tipText}>• {tip}</Text>
+                                                    <Text key={idx} style={[styles.tipText, { color: c.textSecondary }]}>• {tip}</Text>
                                                 ))}
                                             </View>
                                         )}
@@ -640,7 +635,7 @@ export default function InsightsScreen() {
                                                 {(item.details.shoppingList as string[]).map((product, idx) => (
                                                     <View key={idx} style={styles.productRow}>
                                                         <Text style={[styles.productDot, { color: config.accent }]}>●</Text>
-                                                        <Text style={styles.productText}>{product}</Text>
+                                                        <Text style={[styles.productText, { color: c.text }]}>{product}</Text>
                                                     </View>
                                                 ))}
                                             </View>
@@ -652,7 +647,7 @@ export default function InsightsScreen() {
                     );
                 }}
                 ListEmptyComponent={
-                    <Text style={{ textAlign: "center", color: "#aaa", marginTop: 40 }}>
+                    <Text style={{ textAlign: "center", marginTop: 50, color: c.textMuted }}>
                         No insights yet — keep logging!
                     </Text>
                 }
@@ -674,7 +669,6 @@ const styles = StyleSheet.create({
         fontWeight: "800",
         textAlign: "center",
         marginBottom: 16,
-        color: "#222",
         letterSpacing: -0.5,
     },
 
@@ -729,12 +723,10 @@ const styles = StyleSheet.create({
     cardTitle: {
         fontSize: 15,
         fontWeight: "700",
-        color: "#1a1a1a",
     },
 
     cardMessage: {
         fontSize: 12,
-        color: "#666",
         marginTop: 2,
         lineHeight: 17,
     },
@@ -747,7 +739,6 @@ const styles = StyleSheet.create({
 
     previewText: {
         fontSize: 12,
-        color: "#888",
         marginTop: 6,
         fontStyle: "italic",
     },
@@ -765,23 +756,19 @@ const styles = StyleSheet.create({
         borderRadius: 20,
     },
 
-    chipPlain: {
-        backgroundColor: "#f5f5f5",
+    chipHighlight: {
+        borderWidth: 1,
     },
 
-    chipHighlight: {
-        backgroundColor: "#fce4ec",
-        borderWidth: 1,
-        borderColor: "#f48fb1",
-    },
+    chipPlain: {},
 
     chipText: {
         fontSize: 11,
+        color: "#562b2b",
     },
 
     chipHint: {
         fontSize: 10,
-        color: "#bbb",
         marginTop: 8,
         fontStyle: "italic",
     },
@@ -794,7 +781,6 @@ const styles = StyleSheet.create({
 
     expandDescription: {
         fontSize: 13,
-        color: "#444",
         lineHeight: 19,
     },
 
@@ -810,6 +796,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 10,
         borderRadius: 20,
         overflow: "hidden",
+        color: "#fff"
     },
     
     tipsBlock: {
@@ -826,7 +813,6 @@ const styles = StyleSheet.create({
 
     tipText: {
         fontSize: 13,
-        color: "#555",
         lineHeight: 19,
         fontStyle: "italic",
     },
@@ -849,24 +835,17 @@ const styles = StyleSheet.create({
 
     productText: {
         fontSize: 13,
-        color: "#444",
         flex: 1,
         lineHeight: 19,
     },
 
     phaseDescription: {
         fontSize: 13,
-        color: "#444",
         lineHeight: 19,
         marginTop: 6,
         marginBottom: 4,
     },
     
-    phaseChip: {
-        backgroundColor: "#c8e6c9",
-        borderWidth: 1,
-        borderColor: "#a5d6a7"
-    }
 
 
 });
