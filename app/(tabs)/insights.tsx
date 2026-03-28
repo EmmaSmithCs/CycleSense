@@ -86,7 +86,7 @@ export default function InsightsScreen() {
     const CARD_CONFIG = {
         summary:    { emoji: "📋", accent: c.cardInsightBorder, label: "Today's Log",   bg: c.cardInsight, border: c.cardInsightBorder },
         symptom:    { emoji: "🌸", accent: c.cardInsightBorder, label: "Tracked",       bg: c.cardInsight, border: c.cardInsightBorder },
-        intensity:  { emoji: "📈", accent: c.cardInsightBorder, label: "Intensity",     bg: c.cardIntensity, border: c.cardIntensityBorder },
+        intensity:  { emoji: "📈", accent: c.cardIntensityBorder, label: "Intensity",     bg: c.cardIntensity, border: c.cardIntensityBorder },
         prediction: { emoji: "🔮", accent: c.cardPredictionBorder, label: "Prediction",    bg: c.cardPrediction, border: c.cardPredictionBorder },
         phase:      { emoji: "🌿", accent: c.cardPhaseBorder, label: "Cycle Phase",   bg: c.cardPhase, border: c.cardPhaseBorder },
     };
