@@ -22,40 +22,40 @@ export default function SettingsScreen() {
                     <Text style={[styles.cardSubtitle, { color: c.textMuted }]}>Choose your app theme</Text>
 
                     <View style={styles.themeGrid}>
-                        {(Object.keys(themes) as ThemeName[]).map((key) => {
-                            const t = themes[key];
-                            const isActive = themeName === key;
-                            return (
-                                <TouchableOpacity
-                                    key={key}
-                                    onPress={() => setTheme(key)}
-                                    style={[
-                                        styles.themeCard,
-                                        {
-                                            backgroundColor: t.colors.surface,
-                                            borderColor: isActive ? t.colors.primary : t.colors.border,
-                                            borderWidth: isActive ? 2 : 1,
-                                        },
-                                    ]}
-                                >
-                                    <Text style={styles.themeEmoji}>{t.emoji}</Text>
-                                    <Text style={[styles.themeLabel, { color: t.colors.text }]}>{t.label}</Text>
+                    {(Object.keys(themes) as ThemeName[]).map((key) => {
+                        const t = themes[key];
+                        const isActive = themeName === key;
+                        return (
+                            <TouchableOpacity
+                                key={key}
+                                onPress={() => setTheme(key)}
+                                style={[
+                                    styles.themeCard,
+                                    {
+                                        backgroundColor: t.colors.surface,
+                                        borderColor: isActive ? t.colors.primary : t.colors.border,
+                                        borderWidth: isActive ? 2 : 1,
+                                    },
+                                ]}
+                            >
+                                <Text style={styles.themeEmoji}>{t.emoji}</Text>
+                                <Text style={[styles.themeLabel, { color: t.colors.text }]}>{t.label}</Text>
 
-                                    <View
-                                        style={[
-                                            styles.themeSwatch,
-                                            { backgroundColor: t.colors.primary },
-                                        ]}
-                                    />
-                                    {isActive && (
-                                        <Text style={[styles.themeActive, { color: t.colors.primary}]}>
-                                            ✓
-                                        </Text>
-                                    )}
-                                    
-                                </TouchableOpacity>
-                            );
-                        })}
+                                <View
+                                    style={[
+                                        styles.themeSwatch,
+                                        { backgroundColor: t.colors.primary },
+                                    ]}
+                                />
+                                {isActive && (
+                                    <Text style={[styles.themeActive, { color: t.colors.primary}]}>
+                                        ✓
+                                    </Text>
+                                )}
+                                
+                            </TouchableOpacity>
+                        );
+                    })}
 
                     </View>
                 </View>

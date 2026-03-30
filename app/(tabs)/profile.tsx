@@ -272,7 +272,7 @@ export default function ProfileScreen() {
                                     await deleteUser(user);
                                     router.replace('/(auth)/login');
                                 } catch (e: any) {
-                                    Alert.alert("Error", e.message || "Failed to delete account");
+                                    Alert.alert("Error",  "Failed to delete account. Please make sure your password is correct or try again later.");
                                 }
                             },
                             'secure-text'
