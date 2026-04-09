@@ -138,7 +138,7 @@ export default function InsightsScreen() {
 
         const todayStr = format(new Date(), 'yyyy-MM-dd');
         const todayLog = logs.find(l => format(new Date(l.date || ""), 'yyyy-MM-dd') === todayStr);
-        if (!todayLog) return;
+        
 
         // console log to show todays data
         console.log("Today's Log:", todayLog);
@@ -146,41 +146,51 @@ export default function InsightsScreen() {
         const newInsights: Insight[] = [];
 
         // Summary card
-        const summarySymptoms = todayLog.symptoms.map(sym => ({
-            name: sym.name,
-            hasShoppingList: !!(symptomInfo[sym.name]?.shoppingList?.length)
-        }));
-
-        newInsights.push({
-            cardType: "summary",
-            type: "Today's Log",
-            message: `You tracked ${summarySymptoms.length} symptom${summarySymptoms.length !== 1 ? "s" : ""} today`,
-            details: {
-                symptoms: summarySymptoms,
-            }
-        });
-
-        // Symptoms today
-        todayLog.symptoms.forEach(sym => {
-            const info = symptomInfo[sym.name] ?? {};
-            const intensity = Number(sym.intensity) || 0;
-            const hasContent = Array.isArray(info.shoppingList) && info.shoppingList.length > 0;
-
-            if (!hasContent) return;
+        if (todayLog) {
+            const summarySymptoms = todayLog.symptoms.map(sym => ({
+                name: sym.name,
+                hasShoppingList: !!(symptomInfo[sym.name]?.shoppingList?.length)
+            }));
 
             newInsights.push({
-                cardType: "symptom",
-                type: `Symptom: ${sym.name}`,
-                message: `You tracked ${sym.name} today`,
+                cardType: "summary",
+                type: "Today's Log",
+                message: `You tracked ${summarySymptoms.length} symptom${summarySymptoms.length !== 1 ? "s" : ""} today`,
                 details: {
-                    description: info.description ?? "No description available.",
-                    tips: Array.isArray(info.tips) ? info.tips : [],
-                    phase: info.typicalCyclePhase ?? "Unknown phase",
-                    shoppingList: Array.isArray(info.shoppingList) ? info.shoppingList : [],
+                    symptoms: summarySymptoms,
                 }
             });
-        });
+        } else {
+            newInsights.push({
+                cardType: "summary",
+                type: "Today's Log",
+                message: "You haven't logged anything today. Remember, the more you log, the better your insights!",
+                details: { symptoms: [] }
+            });
+        }
 
+        // Symptoms today
+        if (todayLog) {
+            todayLog.symptoms.forEach(sym => {
+                const info = symptomInfo[sym.name] ?? {};
+                const intensity = Number(sym.intensity) || 0;
+                const hasContent = Array.isArray(info.shoppingList) && info.shoppingList.length > 0;
+
+                if (!hasContent) return;
+
+                newInsights.push({
+                    cardType: "symptom",
+                    type: `Symptom: ${sym.name}`,
+                    message: `You tracked ${sym.name} today`,
+                    details: {
+                        description: info.description ?? "No description available.",
+                        tips: Array.isArray(info.tips) ? info.tips : [],
+                        phase: info.typicalCyclePhase ?? "Unknown phase",
+                        shoppingList: Array.isArray(info.shoppingList) ? info.shoppingList : [],
+                    }
+                });
+            });
+        }
 
 
         // Intensity trends
@@ -202,7 +212,7 @@ export default function InsightsScreen() {
             }
         });
  
-        todayLog.symptoms.forEach(sym => {
+        if (todayLog) todayLog.symptoms.forEach(sym => {
             // Only consider logs that fall within the last 3 cycles
             const recentPastLogs = logs.filter(l => {
                 if (!l.date || l.date === todayLog.date) return false;
@@ -320,7 +330,7 @@ export default function InsightsScreen() {
 
                 const alreadyAdded = newInsights.some(i => i.cardType === "prediction" && i.type === `Prediction: ${symName}`);
                 if (alreadyAdded) return;
-           
+            
 
                 newInsights.push({
                     cardType: "prediction",
@@ -338,8 +348,8 @@ export default function InsightsScreen() {
         });
 
         const phaseData = PHASE_DATA[currentPhase];
-        if (phaseData) {
-            const alreadyLoggedNames = new Set(todayLog.symptoms.map(s => s.name));
+        if (phaseData ) {
+            const alreadyLoggedNames = new Set(todayLog?.symptoms.map(s => s.name) ?? []);
             const dateSeed = parseInt(format(new Date(), 'yyyMMdd'));
             const available = phaseData.symptoms.filter(s =>!alreadyLoggedNames.has(s));
 
@@ -504,9 +514,22 @@ export default function InsightsScreen() {
                                                     </View>
                                                 ))}
                                             </View>
-                                            <Text style={[styles.chipHint, { color: c.textMuted }]}>
-                                                ✦ Bold symptoms have recommendations below
-                                            </Text>
+                                            
+                                            {symptoms.length > 0 && (
+                                                <Text style={[styles.chipHint, { color: c.textMuted }]}>
+                                                    ✦ Bold symptoms have recommendations below
+                                                </Text>
+                                            )}
+                                            {symptoms.length === 0 && (
+                                                <>
+                                                    <Text style={[styles.chipHint, { color: c.textMuted }]}>
+                                                        You haven't tracked any symptoms today.
+                                                    </Text>
+                                                    <Text style={[styles.chipHint, { color: c.textMuted }]}>
+                                                        Try logging some to get personalized insights and recommendations!
+                                                    </Text>
+                                                </>
+                                            )}
                                         </Animated.View>
                                     </View>
                                 </View>
