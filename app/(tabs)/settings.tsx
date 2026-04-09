@@ -6,7 +6,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { cancelNotification, requestNotificationPermission, scheduleNotification } from '../utils/notifications';
+import NotificationTester from '../../components/NotificationTester';
+import { cancelNotification, notifyUpcomingSymptomsForUser, requestNotificationPermission, scheduleDailyNotification, scheduleNotification } from '../utils/notifications';
 
 export default function SettingsScreen() {
     const { theme, themeName, setTheme } = useTheme();
@@ -20,6 +21,14 @@ export default function SettingsScreen() {
         daily: "dailyTrackingEnabledID",
         insights: "insightsEnabledID",
     }
+    
+    const handleTestAllNotifications = async () => {
+        const now = Date.now();
+        await scheduleNotification("🔔 General Test", "Notifications are working!", new Date(now + 5000));
+        await scheduleNotification("🩸 Period Reminder", "Your period may be approaching soon — stay prepared!", new Date(now + 10000));
+        await scheduleNotification("📋 Daily Tracking Reminder", "Don't forget to log your daily symptoms and mood!", new Date(now + 15000));
+        await notifyUpcomingSymptomsForUser(new Date(now + 20000));
+    };
 
     const [periodReminderID, setPeriodReminderEnabledID] = useState<string | null>(null);
     const [dailyTrackingID, setDailyTrackingEnabledID] = useState<string | null>(null);
@@ -53,6 +62,7 @@ export default function SettingsScreen() {
                 console.log("Notification permissions granted");
             }
         } else {
+            // Cancel all active notifications when master toggle is turned off
             if (periodReminderID) await cancelNotification(periodReminderID);
             if (dailyTrackingID) await cancelNotification(dailyTrackingID);
             if (insightsID) await cancelNotification(insightsID);
@@ -67,12 +77,14 @@ export default function SettingsScreen() {
     
     const handleTogglePeriodReminder = async (value: boolean) => {
         if (value && notificationsEnabled) {
-            const date = new Date();
-            date.setDate(date.getDate() + 2);
-            const id = await scheduleNotification(
+            // Schedule a daily repeating reminder at 9 AM
+            // (the "2 days before" logic would require knowing the predicted period date;
+            //  for now this fires daily at 9 AM as a standing reminder)
+            const id = await scheduleDailyNotification(
                 'Period Reminder',
-                'Your period is expected to start soon',
-                date
+                'Your period may be approaching soon — stay prepared!',
+                9,  // 9 AM
+                0
             );
             setPeriodReminderEnabledID(id);
             await AsyncStorage.setItem(NOTIF_KEYS.period, id);
@@ -85,15 +97,12 @@ export default function SettingsScreen() {
 
     const handleToggleDailyTracking = async (value: boolean) => {
         if (value && notificationsEnabled) {
-            const date = new Date();
-            date.setHours(15, 0, 0, 0);
-            if (date < new Date()) {
-                date.setDate(date.getDate() + 1);
-            }
-            const id = await scheduleNotification(
+            // Schedule a daily repeating reminder at 8 PM
+            const id = await scheduleDailyNotification(
                 'Daily Tracking Reminder',
                 "Don't forget to log your daily symptoms and mood!",
-                date
+                20, // 8 PM
+                0
             );
             setDailyTrackingEnabledID(id);
             await AsyncStorage.setItem(NOTIF_KEYS.daily, id);
@@ -106,20 +115,25 @@ export default function SettingsScreen() {
 
     const handleToggleInsights = async (value: boolean) => {
         if (value && notificationsEnabled) {
-            const date = new Date();
-            date.setHours(9, 0, 0, 0);
-            if (date < new Date()) {
-                date.setDate(date.getDate() + 1);
+            const granted = await requestNotificationPermission();
+            if (!granted) {
+                setInsightsEnabledID(null);
+                alert("Notification permission is required to enable insights notifications.");
+                return;
             }
-            const id = await scheduleNotification(
-                'Daily Insight',
-                "Here's your daily cycle insight! Check the app to learn more.",
-                date
-            );
-            setInsightsEnabledID(id);
-            await AsyncStorage.setItem(NOTIF_KEYS.insights, id);
-        }
-        else {
+
+            // Schedule first fire at next 9 AM
+            const now = new Date();
+            const next9am = new Date();
+            next9am.setHours(9, 0, 0, 0);
+            if (now >= next9am) {
+                next9am.setDate(next9am.getDate() + 1);
+            }
+
+            const id = await notifyUpcomingSymptomsForUser(next9am);    
+            setInsightsEnabledID(id || null);
+            if (id) await AsyncStorage.setItem(NOTIF_KEYS.insights, id);
+        } else {
             if (insightsID) await cancelNotification(insightsID);
             setInsightsEnabledID(null);
             await AsyncStorage.removeItem(NOTIF_KEYS.insights);
@@ -187,7 +201,7 @@ export default function SettingsScreen() {
                         themeColors={theme.colors}
                     />
                     <NotificationToggle
-                        label="Period Reminder (2 Days Before)"
+                        label="Period Reminder (Daily at 9 AM)"
                         value={!!periodReminderID}
                         onValueChange={handleTogglePeriodReminder}
                         themeColors={theme.colors}
@@ -210,14 +224,16 @@ export default function SettingsScreen() {
                 </View>
 
 
-                {/* PLACEHODLER FUTURE SETTINGS */}
+                {/* PLACEHOLDER FUTURE SETTINGS */}
                 <Text style={[styles.sectionTitle, { color: c.textMuted }]}>Privacy</Text>
                 <View style={[styles.card, styles.comingSoonCard, { backgroundColor: c.card, borderColor: c.border }]}>
                     <Text style={styles.comingSoonEmoji}>🔒</Text>  
                     <Text style={[styles.comingSoonTitle, { color: c.textMuted }]}>Coming soon</Text>
                     <Text style={[styles.comingSoonText, { color: c.textMuted }]}>Privacy options! Stay tuned!</Text>
                 </View>
-                
+
+                {/* test notifications */}
+                <NotificationTester />
             </ScrollView>
         </SafeAreaView>
     );
@@ -365,8 +381,4 @@ const styles = StyleSheet.create({
         flex: 1,
         flexWrap: 'wrap',
     },
-
-    notificationSwitch: {
-    }
-
 });
