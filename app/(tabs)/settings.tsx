@@ -2,13 +2,130 @@
 
 import { ThemeName, themes } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
-import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import React, { useEffect, useState } from 'react';
+import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { cancelNotification, requestNotificationPermission, scheduleNotification } from '../utils/notifications';
 
 export default function SettingsScreen() {
     const { theme, themeName, setTheme } = useTheme();
     const c = theme.colors;
+    
+    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+    
+    const NOTIF_KEYS = {
+        notifications: "notificationsEnabled",
+        period: "periodReminderEnabledID",
+        daily: "dailyTrackingEnabledID",
+        insights: "insightsEnabledID",
+    }
+
+    const [periodReminderID, setPeriodReminderEnabledID] = useState<string | null>(null);
+    const [dailyTrackingID, setDailyTrackingEnabledID] = useState<string | null>(null);
+    const [insightsID, setInsightsEnabledID] = useState<string | null>(null);
+    
+    
+    useEffect(() => {
+        (async () => {
+            const savedNotifications = await AsyncStorage.getItem(NOTIF_KEYS.notifications);
+            const savedPeriodID = await AsyncStorage.getItem(NOTIF_KEYS.period);
+            const savedDailyID = await AsyncStorage.getItem(NOTIF_KEYS.daily);
+            const savedInsightsID = await AsyncStorage.getItem(NOTIF_KEYS.insights);
+
+            if (savedNotifications !== null) setNotificationsEnabled(JSON.parse(savedNotifications));
+            if (savedPeriodID) setPeriodReminderEnabledID(savedPeriodID);
+            if (savedDailyID) setDailyTrackingEnabledID(savedDailyID);
+            if (savedInsightsID) setInsightsEnabledID(savedInsightsID);
+        })()
+    }, []);
+
+    const handleToggleNotifications = async (value: boolean) => {
+        setNotificationsEnabled(value);
+        await AsyncStorage.setItem(NOTIF_KEYS.notifications, JSON.stringify(value));
+        if (value) {
+            const granted = await requestNotificationPermission();
+            if (!granted) {
+                setNotificationsEnabled(false);
+                alert("Notification permission is required to enable notifications.");
+            } else {
+                alert("Notifications enabled! You can customize your reminders below.");
+                console.log("Notification permissions granted");
+            }
+        } else {
+            if (periodReminderID) await cancelNotification(periodReminderID);
+            if (dailyTrackingID) await cancelNotification(dailyTrackingID);
+            if (insightsID) await cancelNotification(insightsID);
+            setPeriodReminderEnabledID(null);
+            setDailyTrackingEnabledID(null);
+            setInsightsEnabledID(null);
+            await AsyncStorage.removeItem(NOTIF_KEYS.period);
+            await AsyncStorage.removeItem(NOTIF_KEYS.daily);
+            await AsyncStorage.removeItem(NOTIF_KEYS.insights);
+        }
+    };
+    
+    const handleTogglePeriodReminder = async (value: boolean) => {
+        if (value && notificationsEnabled) {
+            const date = new Date();
+            date.setDate(date.getDate() + 2);
+            const id = await scheduleNotification(
+                'Period Reminder',
+                'Your period is expected to start soon',
+                date
+            );
+            setPeriodReminderEnabledID(id);
+            await AsyncStorage.setItem(NOTIF_KEYS.period, id);
+        } else {
+            if (periodReminderID) await cancelNotification(periodReminderID);
+            setPeriodReminderEnabledID(null);
+            await AsyncStorage.removeItem(NOTIF_KEYS.period);
+        }
+    };
+
+    const handleToggleDailyTracking = async (value: boolean) => {
+        if (value && notificationsEnabled) {
+            const date = new Date();
+            date.setHours(15, 0, 0, 0);
+            if (date < new Date()) {
+                date.setDate(date.getDate() + 1);
+            }
+            const id = await scheduleNotification(
+                'Daily Tracking Reminder',
+                "Don't forget to log your daily symptoms and mood!",
+                date
+            );
+            setDailyTrackingEnabledID(id);
+            await AsyncStorage.setItem(NOTIF_KEYS.daily, id);
+        } else {
+            if (dailyTrackingID) await cancelNotification(dailyTrackingID);
+            setDailyTrackingEnabledID(null);
+            await AsyncStorage.removeItem(NOTIF_KEYS.daily);
+        }
+    };
+
+    const handleToggleInsights = async (value: boolean) => {
+        if (value && notificationsEnabled) {
+            const date = new Date();
+            date.setHours(9, 0, 0, 0);
+            if (date < new Date()) {
+                date.setDate(date.getDate() + 1);
+            }
+            const id = await scheduleNotification(
+                'Daily Insight',
+                "Here's your daily cycle insight! Check the app to learn more.",
+                date
+            );
+            setInsightsEnabledID(id);
+            await AsyncStorage.setItem(NOTIF_KEYS.insights, id);
+        }
+        else {
+            if (insightsID) await cancelNotification(insightsID);
+            setInsightsEnabledID(null);
+            await AsyncStorage.removeItem(NOTIF_KEYS.insights);
+        }
+    };
+        
 
     return (
         <SafeAreaView style={{ flex: 1, backgroundColor: c.background }}>
@@ -60,14 +177,40 @@ export default function SettingsScreen() {
                     </View>
                 </View>
 
-                {/* PLACEHODLER FUTURE SETTINGS */}
+                
                 <Text style={[styles.sectionTitle, { color: c.textMuted }]}>Notifications</Text>
-                <View style={[styles.card, styles.comingSoonCard, { backgroundColor: c.card, borderColor: c.border }]}>
-                    <Text style={styles.comingSoonEmoji}>🔔</Text>  
-                    <Text style={[styles.comingSoonTitle, { color: c.textMuted }]}>Coming soon</Text>
-                    <Text style={[styles.comingSoonText, { color: c.textMuted }]}>Period reminders, daily log nudges, and insights! Stay tuned!</Text>
+                <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+                    <NotificationToggle
+                        label="Enable notifications"
+                        value={notificationsEnabled}
+                        onValueChange={handleToggleNotifications}
+                        themeColors={theme.colors}
+                    />
+                    <NotificationToggle
+                        label="Period Reminder (2 Days Before)"
+                        value={!!periodReminderID}
+                        onValueChange={handleTogglePeriodReminder}
+                        themeColors={theme.colors}
+                        disabled={!notificationsEnabled}
+                    />
+                    <NotificationToggle
+                        label="Daily Tracking Reminder (8 PM)"
+                        value={!!dailyTrackingID}
+                        onValueChange={handleToggleDailyTracking}
+                        themeColors={theme.colors}
+                        disabled={!notificationsEnabled}
+                    />
+                    <NotificationToggle
+                        label="Insights & Tips"
+                        value={!!insightsID}
+                        onValueChange={handleToggleInsights}
+                        themeColors={theme.colors}
+                        disabled={!notificationsEnabled}
+                    />
                 </View>
 
+
+                {/* PLACEHODLER FUTURE SETTINGS */}
                 <Text style={[styles.sectionTitle, { color: c.textMuted }]}>Privacy</Text>
                 <View style={[styles.card, styles.comingSoonCard, { backgroundColor: c.card, borderColor: c.border }]}>
                     <Text style={styles.comingSoonEmoji}>🔒</Text>  
@@ -77,6 +220,38 @@ export default function SettingsScreen() {
                 
             </ScrollView>
         </SafeAreaView>
+    );
+}
+
+function NotificationToggle({
+    label,
+    value,
+    onValueChange,
+    themeColors,
+    disabled = false
+}: {
+    label: string;
+    value: boolean;
+    onValueChange: (newValue: boolean) => void;
+    themeColors: ReturnType<typeof useTheme>['theme']['colors'];
+    disabled?: boolean;
+}) {
+    return (
+        <View
+            style={[
+                styles.notificationRow,
+                { backgroundColor: themeColors.surface, opacity: disabled ? 0.5 : 1 },
+            ]}
+        >
+            <Text style={[styles.notificationLabel, { color: themeColors.text }]}>{label}</Text>
+            <Switch
+                value={value}
+                onValueChange={onValueChange}
+                disabled={disabled}
+                trackColor={{ false: themeColors.border, true: themeColors.primary }}
+                thumbColor={themeColors.surface}
+            />
+        </View>
     );
 }
 
@@ -173,4 +348,25 @@ const styles = StyleSheet.create({
         fontSize: 13,
         textAlign: 'center',
     },
+
+    notificationRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        paddingHorizontal: 8,
+        borderRadius: 12,
+        marginBottom: 12,
+    },
+
+    notificationLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        flex: 1,
+        flexWrap: 'wrap',
+    },
+
+    notificationSwitch: {
+    }
+
 });
