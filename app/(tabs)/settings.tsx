@@ -2,12 +2,16 @@
 
 import { ThemeName, themes } from '@/constants/theme';
 import { useTheme } from '@/context/ThemeContext';
+import { auth } from '@/firebase/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { collection, getDocs } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import NotificationTester from '../../components/NotificationTester';
-import { cancelNotification, notifyUpcomingSymptomsForUser, requestNotificationPermission, scheduleDailyNotification, scheduleNotification } from '../utils/notifications';
+import { db } from '../../firebase/config';
+import { cancelNotification, notifyUpcomingSymptomsForUser, requestNotificationPermission, scheduleDailyNotification, scheduleNotification, schedulePeriodReminderFromLogs } from '../utils/notifications';
 
 export default function SettingsScreen() {
     const { theme, themeName, setTheme } = useTheme();
@@ -21,6 +25,14 @@ export default function SettingsScreen() {
         daily: "dailyTrackingEnabledID",
         insights: "insightsEnabledID",
     }
+
+    
+    type DailyLog = {
+        id: string;
+        bleeding: "None" | "Light" | "Medium" | "Heavy";
+        symptoms:  {name: string; intensity?: number}[];
+        date: string;
+    }
     
     const handleTestAllNotifications = async () => {
         const now = Date.now();
@@ -33,19 +45,25 @@ export default function SettingsScreen() {
     const [periodReminderID, setPeriodReminderEnabledID] = useState<string | null>(null);
     const [dailyTrackingID, setDailyTrackingEnabledID] = useState<string | null>(null);
     const [insightsID, setInsightsEnabledID] = useState<string | null>(null);
-    
-    
+    const [dailyHour, setDailyHour] = useState(20);
+    const [dailyMinute, setDailyMinute] = useState(0);
+    const [showDailyTimePicker, setShowDailyTimePicker] = useState(false);
+
     useEffect(() => {
         (async () => {
             const savedNotifications = await AsyncStorage.getItem(NOTIF_KEYS.notifications);
             const savedPeriodID = await AsyncStorage.getItem(NOTIF_KEYS.period);
             const savedDailyID = await AsyncStorage.getItem(NOTIF_KEYS.daily);
             const savedInsightsID = await AsyncStorage.getItem(NOTIF_KEYS.insights);
+            const savedDailyHour = await AsyncStorage.getItem('dailyHour');
+            const savedDailyMinute = await AsyncStorage.getItem('dailyMinute');
 
             if (savedNotifications !== null) setNotificationsEnabled(JSON.parse(savedNotifications));
             if (savedPeriodID) setPeriodReminderEnabledID(savedPeriodID);
             if (savedDailyID) setDailyTrackingEnabledID(savedDailyID);
             if (savedInsightsID) setInsightsEnabledID(savedInsightsID);
+            if (savedDailyHour) setDailyHour(parseInt(savedDailyHour));
+            if (savedDailyMinute) setDailyMinute(parseInt(savedDailyMinute, 10));
         })()
     }, []);
 
@@ -77,17 +95,31 @@ export default function SettingsScreen() {
     
     const handleTogglePeriodReminder = async (value: boolean) => {
         if (value && notificationsEnabled) {
-            // Schedule a daily repeating reminder at 9 AM
-            // (the "2 days before" logic would require knowing the predicted period date;
-            //  for now this fires daily at 9 AM as a standing reminder)
-            const id = await scheduleDailyNotification(
-                'Period Reminder',
-                'Your period may be approaching soon — stay prepared!',
-                9,  // 9 AM
-                0
-            );
-            setPeriodReminderEnabledID(id);
-            await AsyncStorage.setItem(NOTIF_KEYS.period, id);
+            const snapshot = await getDocs(collection(db, "users", auth.currentUser!.uid, "dailyLogs"));
+            const logs: DailyLog[] = snapshot.docs.map((doc) => {
+            const data = doc.data() as Partial<DailyLog>;
+
+                return {
+                    id: doc.id,
+                    bleeding: data.bleeding ?? "None",
+                    symptoms: Array.isArray(data.symptoms) ? data.symptoms : [],
+                    date: data.date ?? doc.id,
+                };
+            });
+
+            if (!logs.length) {
+                alert("Not enough data to set period reminder. Please log at least one day of symptoms with bleeding info.");
+                return;
+            }
+
+            const id = await schedulePeriodReminderFromLogs(logs, 2);
+            if (id) {
+                const reminderId =
+                    typeof id === 'string' ? id : (id as unknown as { identifier: string }).identifier;
+                setPeriodReminderEnabledID(reminderId);
+                await AsyncStorage.setItem(NOTIF_KEYS.period, reminderId);
+            }
+            
         } else {
             if (periodReminderID) await cancelNotification(periodReminderID);
             setPeriodReminderEnabledID(null);
@@ -95,17 +127,28 @@ export default function SettingsScreen() {
         }
     };
 
-    const handleToggleDailyTracking = async (value: boolean) => {
+    const handleToggleDailyTracking = async (value: boolean, hour?: number, minute?: number) => {
+        const scheduledHour = hour ?? dailyHour;
+        const scheduledMinute = minute ?? dailyMinute;
+        
         if (value && notificationsEnabled) {
-            // Schedule a daily repeating reminder at 8 PM
+            const now = new Date();
+            const scheduledDate = new Date();
+            scheduledDate.setHours(scheduledHour, scheduledMinute, 0, 0);
+            if (scheduledDate <= now) {
+                scheduledDate.setDate(scheduledDate.getDate() + 1);
+            }
+            // Schedule a daily repeating reminder at the selected time
             const id = await scheduleDailyNotification(
                 'Daily Tracking Reminder',
                 "Don't forget to log your daily symptoms and mood!",
-                20, // 8 PM
-                0
+                scheduledDate.getHours(),
+                scheduledDate.getMinutes()
             );
             setDailyTrackingEnabledID(id);
             await AsyncStorage.setItem(NOTIF_KEYS.daily, id);
+            await AsyncStorage.setItem('dailyHour', scheduledHour.toString());
+            await AsyncStorage.setItem('dailyMinute', scheduledMinute.toString());
         } else {
             if (dailyTrackingID) await cancelNotification(dailyTrackingID);
             setDailyTrackingEnabledID(null);
@@ -208,12 +251,58 @@ export default function SettingsScreen() {
                         disabled={!notificationsEnabled}
                     />
                     <NotificationToggle
-                        label="Daily Tracking Reminder (8 PM)"
+                        label="Daily Tracking Reminder"
                         value={!!dailyTrackingID}
                         onValueChange={handleToggleDailyTracking}
                         themeColors={theme.colors}
                         disabled={!notificationsEnabled}
                     />
+
+                    {!!dailyTrackingID && (
+                        <TouchableOpacity
+                            style={[
+                                styles.notificationRow,
+                                { backgroundColor: theme.colors.surface}
+                            ]}
+                            onPress ={() => setShowDailyTimePicker(true)}
+                        >
+                            <Text style={[styles.notificationLabel, { color: theme.colors.text }]}>
+                                Set daily reminder time 
+                            </Text>
+                            <Text style={{ color: theme.colors.primary, fontWeight: '600' }}>
+                                {`${dailyHour.toString().padStart(2, '0')}:${dailyMinute.toString().padStart(2, '0')}`}
+
+                            </Text>
+                        </TouchableOpacity>
+                    )}
+
+                    { showDailyTimePicker &&  (
+                        <DateTimePicker
+                            value={new Date(0, 0, 0, dailyHour, dailyMinute)}
+                            mode="time"
+                            is24Hour={true}
+                            display="spinner"
+                            onChange={(event, selectedDate) => {
+                                setShowDailyTimePicker(false);
+                                if (event.type === 'set' && selectedDate) {
+                                    const newHour = selectedDate.getHours();
+                                    const newMinute = selectedDate.getMinutes();
+                                    setDailyHour(newHour);
+                                    setDailyMinute(newMinute);
+
+                                    (async () => {
+
+                                        await AsyncStorage.setItem('dailyHour', newHour.toString());
+                                        await AsyncStorage.setItem('dailyMinute', newMinute.toString());
+
+                                        handleToggleDailyTracking(false, newHour, newMinute);
+                                        setTimeout(() => handleToggleDailyTracking(true, newHour, newMinute), 100);
+                                    })();
+                                }
+                            }}
+                        />
+                    )}
+
                     <NotificationToggle
                         label="Insights & Tips"
                         value={!!insightsID}

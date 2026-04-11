@@ -1,11 +1,13 @@
 // utils/notifications.ts
 
+console.log("🔥 notifications.ts LOADED");
+
 // Imports
 import { auth, db } from '@/firebase/config';
 import * as Notifications from "expo-notifications";
 import { collection, getDocs } from "firebase/firestore";
 import { symptomInfo } from '../data/symptomInfo';
-import { buildCycles, getCycleInfo } from "./cyclePrediction";
+import { buildCycles, getCycleInfo, predictNextPeriod } from "./cyclePrediction";
 
 Notifications.setNotificationHandler({
     handleNotification: async () => ({
@@ -31,6 +33,96 @@ type Insight = {
     cardType: "prediction";
 };
 
+type ScheduleResult = {
+    id: string;
+    predictedPeriodDate: string;
+    reminderDate: string;
+    cycleLengthUsed: number | null;
+    debug?: {
+        cycles: any[];
+        logsUsed: number;
+    };
+};
+
+type ReminderLog = {
+    id: string;
+    bleeding: "None" | "Light" | "Medium" | "Heavy";
+    symptoms: { name: string; intensity?: number }[];
+    date: string;
+};
+
+export async function schedulePeriodReminderFromLogs(
+    logs: ReminderLog[],
+    daysBefore: number = 2
+): Promise<ScheduleResult | null> {
+
+    if (!logs.length) {
+        console.log("🩸 No logs provided");
+        return null;
+    }
+
+    // 1. Build cycles
+    const cycles = buildCycles(
+        logs.map(l => ({
+            bleeding: l.bleeding,
+            symptoms: l.symptoms.map(s => s.name),
+            date: l.date
+        }))
+    );
+
+    if (!cycles.length) {
+        console.log("🩸 No cycles detected");
+        return null;
+    }
+
+    console.log("🧬 Cycles detected:", cycles);
+
+    // 2. Predict next period
+    const predictedDate = predictNextPeriod(cycles);
+
+    if (!predictedDate) {
+        console.log("🩸 Could not predict next period");
+        return null;
+    }
+
+    // 3. Calculate reminder date
+    const reminderDate = new Date(predictedDate);
+    reminderDate.setDate(reminderDate.getDate() - daysBefore);
+
+    // 4. Safety fallback (never schedule in past)
+    const now = new Date();
+    if (reminderDate <= now) {
+        console.log("⚠️ Reminder date in past, shifting to +5s test mode");
+        reminderDate.setTime(now.getTime() + 5000);
+    }
+
+    console.log("📅 Prediction debug:", {
+        predictedPeriodDate: predictedDate.toISOString(),
+        reminderDate: reminderDate.toISOString(),
+        daysBefore
+    });
+
+    // 5. Schedule notification
+    const id = await scheduleNotification(
+        "🩸 Period Reminder",
+        `Your period is expected around ${predictedDate.toDateString()} — stay prepared!`,
+        reminderDate
+    );
+
+    const debugCycles = cycles;
+
+    return {
+        id,
+        predictedPeriodDate: predictedDate.toISOString(),
+        reminderDate: reminderDate.toISOString(),
+        cycleLengthUsed: cycles[cycles.length - 1]?.cycleLength ?? null,
+        debug: {
+            cycles: debugCycles,
+            logsUsed: logs.length
+        }
+
+    };
+}
 
 export const generatePredictionInsights = (logs: DailyLog[]): Insight[] => {
   if (!logs.length) return [];

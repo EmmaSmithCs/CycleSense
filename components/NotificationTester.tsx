@@ -4,9 +4,10 @@
 import * as Notifications from "expo-notifications";
 import React, { useState } from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { cancelAllNotifications, notifyUpcomingSymptomsForUser, requestNotificationPermission, scheduleDailyNotification, scheduleNotification, } from "../app/utils/notifications";
- 
+import { cancelAllNotifications, notifyUpcomingSymptomsForUser, requestNotificationPermission, scheduleDailyNotification, scheduleNotification, schedulePeriodReminderFromLogs } from "../app/utils/notifications";
+
 type LogEntry = { label: string; status: "pending" | "ok" | "fail"; detail?: string };
+type ReminderLog = Parameters<typeof schedulePeriodReminderFromLogs>[0][number];
  
 export default function NotificationTester() {
     const [log, setLog] = useState<LogEntry[]>([]);
@@ -73,8 +74,38 @@ export default function NotificationTester() {
         await run("Insights notification (20s)", () =>
             notifyUpcomingSymptomsForUser(new Date(Date.now() + 20000))
         );
+
+
+        // 7. Schedule period reminder from logs (fires in 25s) — needs real Firestore data with bleeding logs
+        await run("Fake period reminder (5s)", async () => {
+            const fakeLogs: ReminderLog[] = [
+                {
+                    id: new Date(Date.now() - 26 * 24 * 60 * 60 * 1000).toISOString(),
+                    bleeding: "Light",
+                    symptoms: [],
+                    date: new Date(Date.now() - 26 * 24 * 60 * 60 * 1000).toISOString(),
+                }
+            ];
+
+            const result = await schedulePeriodReminderFromLogs(fakeLogs, 2);
+
+            if (!result) return "failed";
+
+            console.log("🧪 PERIOD REMINDER RESULT:", result);
+
+            return `🩸 Period Reminder Debug
+
+            ID: ${result.id}
+            Predicted: ${result.predictedPeriodDate}
+            Reminder: ${result.reminderDate}
+            Cycle Length: ${result.cycleLengthUsed ?? "unknown"}
+
+            Logs Used: ${result.debug?.logsUsed ?? 0}
+            Cycles Found: ${result.debug?.cycles?.length ?? 0}
+            `;
+        });
  
-        // 7. List all currently scheduled notifications
+        // 8. List all currently scheduled notifications
         await run("List scheduled notifications", async () => {
             const all = await Notifications.getAllScheduledNotificationsAsync();
             return `${all.length} scheduled: ${all.map(n => n.content.title).join(", ") || "none"}`;
