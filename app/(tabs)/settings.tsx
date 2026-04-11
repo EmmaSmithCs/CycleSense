@@ -5,9 +5,9 @@ import { useTheme } from '@/context/ThemeContext';
 import { auth } from '@/firebase/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
-import { collection, getDocs } from 'firebase/firestore';
+import { collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
+import { Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import NotificationTester from '../../components/NotificationTester';
 import { db } from '../../firebase/config';
@@ -17,15 +17,12 @@ export default function SettingsScreen() {
     const { theme, themeName, setTheme } = useTheme();
     const c = theme.colors;
     
-    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
-    
     const NOTIF_KEYS = {
         notifications: "notificationsEnabled",
         period: "periodReminderEnabledID",
         daily: "dailyTrackingEnabledID",
         insights: "insightsEnabledID",
     }
-
     
     type DailyLog = {
         id: string;
@@ -42,12 +39,23 @@ export default function SettingsScreen() {
         await notifyUpcomingSymptomsForUser(new Date(now + 20000));
     };
 
+    // Notifs
+    const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [periodReminderID, setPeriodReminderEnabledID] = useState<string | null>(null);
     const [dailyTrackingID, setDailyTrackingEnabledID] = useState<string | null>(null);
     const [insightsID, setInsightsEnabledID] = useState<string | null>(null);
     const [dailyHour, setDailyHour] = useState(20);
     const [dailyMinute, setDailyMinute] = useState(0);
     const [showDailyTimePicker, setShowDailyTimePicker] = useState(false);
+
+    // Preferences
+    const [cycleLength, setCycleLength] = useState(28);
+    const [periodLength, setPeriodLength] = useState(5);
+    const [dateFormat, setDateFormat] = useState<'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD'>('DD/MM/YYYY');
+    const [gamificationEnabled, setGamificationEnabled] = useState(false);
+    const [prefsSaving, setPrefsSaving] = useState(false);
+    const [prefsSaved, setPrefsSaved] = useState(false);
+    const [showDisclaimer, setShowDisclaimer] = useState(false);
 
     useEffect(() => {
         (async () => {
@@ -64,8 +72,38 @@ export default function SettingsScreen() {
             if (savedInsightsID) setInsightsEnabledID(savedInsightsID);
             if (savedDailyHour) setDailyHour(parseInt(savedDailyHour));
             if (savedDailyMinute) setDailyMinute(parseInt(savedDailyMinute, 10));
+
+            const user = auth.currentUser;
+            if (!user) return;
+            const userSnapshot = await getDoc(doc(db, 'users', user.uid));
+            if (userSnapshot.exists()) {
+                const data = userSnapshot.data();
+                if (data.cycleLength) setCycleLength(data.cycleLength);
+                if (data.periodLength) setPeriodLength(data.periodLength);
+                if (data.dateFormat) setDateFormat(data.dateFormat);
+                if (data.gamificationEnabled !== undefined) setGamificationEnabled(data.gamificationEnabled);
+            }
         })()
     }, []);
+
+    const handleSavePreferences = async () => {
+        const user = auth.currentUser;
+        if (!user) return;
+        setPrefsSaving(true);
+        try {
+            await updateDoc(doc(db, 'users', user.uid), {
+                cycleLength,
+                periodLength,
+                dateFormat,
+                gamificationEnabled,
+            });
+            setPrefsSaved(true);
+            setTimeout(() => setPrefsSaved(false), 2500);
+        } catch (error) {
+            console.error("Error saving preferences:", error);
+        }
+        setPrefsSaving(false);
+    };
 
     const handleToggleNotifications = async (value: boolean) => {
         setNotificationsEnabled(value);
@@ -182,6 +220,38 @@ export default function SettingsScreen() {
             await AsyncStorage.removeItem(NOTIF_KEYS.insights);
         }
     };
+
+    const Stepper = ({
+        value,
+        onChange,
+        min,
+        max,
+        unit = 'days',
+    } : {
+        value: number;
+        onChange: (newValue: number) => void;
+        min: number,
+        max: number;
+        unit?: string;
+    }) => (
+        <View style={[styles.stepper, {borderColor: c.border, backgroundColor: c.surface}]}>
+            <TouchableOpacity
+                style={styles.stepperBtn}
+                onPress={() => onChange(Math.max(value - 1, min))}
+            >
+                <Text style={[styles.stepperBtnText, {color: c.text}]}>-</Text>
+            </TouchableOpacity>
+
+            <Text style={[styles.stepperValueText, {color: c.text}]}>{value} {unit}</Text>
+
+            <TouchableOpacity
+                style={styles.stepperBtn}
+                onPress={() => onChange(Math.min(value + 1, max))}
+            >   
+                <Text style={[styles.stepperBtnText, {color: c.text}]}>+</Text>
+            </TouchableOpacity>
+        </View>
+    );
         
 
     return (
@@ -234,6 +304,111 @@ export default function SettingsScreen() {
                     </View>
                 </View>
 
+                {/* Preferences */}
+                <Text style={[styles.sectionTitle, { color: c.textMuted }]}>Preferences</Text>
+                <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+                    <View style={styles.preferenceRow}>
+                        <View style={styles.preferenceLabelWrap}>
+                            <Text style={[styles.preferenceLabel, {color: c.text}]}>Average Cycle Length</Text>
+                            <Text style={[styles.preferenceHint, {color: c.textMuted}]}>Used to predict your next period (21-45 days)</Text>
+                        </View>
+
+                        <Stepper 
+                            value={cycleLength} 
+                            onChange={setCycleLength}
+                            min={21}
+                            max={45}
+                        />
+                    </View>
+                            
+                    <View style={[styles.divider, {backgroundColor: c.border}]}/>
+
+                    <View style={styles.preferenceRow}>
+                        <View style={styles.preferenceLabelWrap}>
+                            <Text style={[styles.preferenceLabel, {color: c.text}]}>Average Period Length</Text>
+                            <Text style={[styles.preferenceHint, {color: c.textMuted}]}>Used to predict your next period (1-10 days)</Text>
+                        </View>
+
+                        <Stepper 
+                            value={periodLength} 
+                            onChange={setPeriodLength}
+                            min={1}
+                            max={10}
+                        />
+
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: c.border}]}/>
+
+                    <View style={styles.preferenceRow}>
+                        <View style={styles.preferenceLabelWrap}>
+                            <Text style={[styles.preferenceLabel, {color: c.text}]}>Date Format</Text>
+                            <Text style={[styles.preferenceHint, {color: c.textMuted}]}>How dates are displayed throughout the app</Text>
+                        </View>
+
+                        <View style={styles.segmentRow}>
+                            {(['DD/MM/YYYY', 'MM/DD/YYYY'] as const).map(fmt => (
+                                <TouchableOpacity
+                                    key={fmt}
+                                    onPress={() => setDateFormat(fmt)}
+                                    style={[
+                                        styles.segmentBtn,
+                                        {
+                                            backgroundColor: dateFormat === fmt ? c.primary : c.surface,
+                                            borderColor: dateFormat === fmt ? c.primary : c.border,
+                                        },
+                                    ]}
+                                >
+                                    <Text style={{ color: dateFormat === fmt ? '#fff' : c.textMuted, fontSize: 11, fontWeight: '600' }}>
+                                        {fmt}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: c.border}]} />
+                    
+                    <View style={[styles.preferenceRow, {backgroundColor: 'transparent'}]}>
+                        <View style={styles.preferenceLabelWrap}>
+                            <Text style={[styles.preferenceLabel, {color: c.text }]}>Streaks & Badges</Text>
+                            <Text style={[styles.preferenceHint, { color: c.textMuted}]}>
+                                Enable logging streaks and achievement badges
+                            </Text>
+                        </View>
+                        <Switch 
+                            value={gamificationEnabled}
+                            onValueChange={setGamificationEnabled}
+                            trackColor={{ false: c.border, true: c.primary }}
+                            thumbColor={c.surface}
+                        />
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: c.border}]} />
+
+                    {/* DISCLAIMER AGAIN*/}
+
+                    <TouchableOpacity
+                        style={styles.disclaimerRow}
+                        onPress={() => setShowDisclaimer(true)}
+                    >
+                        <Text style={[styles.preferenceLabel, { color: c.text }]}>Medical Disclaimer</Text>
+                        <Text style={[styles.chevron, { color: c.textMuted }]}>›</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.saveBtn,
+                            { backgroundColor: prefsSaved ? '#4caf50' : c.primary},
+                        ]}
+                        onPress={handleSavePreferences}
+                        disabled={prefsSaving}  
+                    >
+                        <Text style={styles.saveBtnText}>
+                            {prefsSaved? '✓ Saved' : prefsSaving ? 'Saving...' : 'Save Preferences'}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
                 
                 <Text style={[styles.sectionTitle, { color: c.textMuted }]}>Notifications</Text>
                 <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
@@ -321,9 +496,37 @@ export default function SettingsScreen() {
                     <Text style={[styles.comingSoonText, { color: c.textMuted }]}>Privacy options! Stay tuned!</Text>
                 </View>
 
+
+
                 {/* test notifications */}
                 <NotificationTester />
             </ScrollView>
+
+            {/* Disclaimer modal*/}
+            <Modal visible={showDisclaimer} animationType="slide" transparent>
+                <View style={styles.disclaimerOverlay}>
+                    <View style={[styles.disclaimermodal, {backgroundColor: c.card}]}>
+                        <Text style={[styles.disclaimerTitle, {backgroundColor: c.card}]}>Medical Disclaimer</Text>
+                        <Text style={[styles.disclaimerBody, {color: c.textMuted }]}>
+                            <Text style={{ fontWeight: '700', color: c.text }}>
+                                CycleSense is not a medical device.{'\n\n'}
+                            </Text>
+                                This app is desgined to help you track your menstrual cycle and identify period
+                                patterns over time. It does not provide medical diagnoses, adn predictions may
+                                not be accraute for everyone.{'\n\n'}
+                                Do not use this app as a method of contraception or as a substitute for professional
+                                medical advice. If you have concerns about your health, please consult a healthcare provider.
+                        </Text>
+                        <TouchableOpacity
+                            style={[styles.saveBtn, { backgroundColor: c.primary, marginTop: 8 }]}
+                            onPress={() => setShowDisclaimer(false)}
+                        >
+                            <Text style={styles.saveBtnText}>Close</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal> 
+
         </SafeAreaView>
     );
 }
@@ -470,4 +673,135 @@ const styles = StyleSheet.create({
         flex: 1,
         flexWrap: 'wrap',
     },
+
+    preferenceRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+        gap: 12,
+    },
+
+    preferenceLabelWrap: {
+        flex: 1,
+    },
+
+    preferenceLabel: {
+        fontSize: 14,
+        fontWeight: '600',
+        marginBottom: 2,
+    },
+
+    preferenceHint: {
+        fontSize: 12,
+        lineHeight: 16,
+    },
+
+    divider: {
+        height: 1,
+        marginVertical: 2,
+        opacity: 0.5,
+    },
+
+    stepper: {
+        flexDirection: 'row',
+        borderWidth: 1,
+        borderRadius: 10,
+        overflow: 'hidden',
+        flexShrink: 0,
+    },
+
+    stepperBtn: {
+        width: 36,
+        height: 40,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
+
+    stepperBtnText: {
+        fontSize: 20,
+        lineHeight: 24,
+    },
+
+    stepperValue: {
+        width: 72,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderLeftWidth: 1,
+        borderRightWidth: 1,
+    },
+
+    stepperValueText: {
+        fontSize: 13,
+        fontWeight: '600',
+        lineHeight: 40,
+    },
+
+    segmentRow: {
+        flexDirection: 'row',
+        gap: 6,
+        flexShrink: 0,
+    },
+
+    segmentBtn: {
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        borderWidth: 1,
+        borderRadius: 8,
+    },
+
+    segmentBtnText: {
+        fontWeight : '600',
+    },
+
+    disclaimerRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        paddingVertical: 12,
+    },
+
+    chevron: {
+        fontSize: 22,
+        fontWeight: '300',
+    },
+
+    saveBtn: {
+        borderRadius: 12,
+        padding: 14,
+        alignItems: 'center',
+        marginTop: 16,
+    },
+
+    saveBtnText: {
+        color: '#fff',
+        fontWeight: '700',
+        fontSize: 15,
+    },
+
+    disclaimerOverlay: {
+        flex: 1,
+        backgroundColor: '#000000aa',
+        justifyContent: 'center',
+        padding: 24,
+    },
+
+    disclaimermodal: {
+        borderRadius: 20,
+        padding: 24,
+    },
+
+    disclaimerTitle: {
+        fontSize: 20,
+        fontWeight: '700',
+        marginBottom: 16,
+    },
+
+    disclaimerBody: {
+        fontSize: 14,
+        lineHeight: 22,
+    },
+
+
+
 });
