@@ -11,7 +11,6 @@ import { db } from '../../firebase/config';
 import { saveDailyLog } from '../../firebase/dailyLogs';
 import { buildCycles, DailyLog, getCycleProgress, predictNextPeriod } from '../utils/cyclePrediction';
 
-const router = useRouter();
 
 const intensitySymptoms = ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia", "Bloating", "Gas", "Diarrhoea", "Constipation"];
 
@@ -82,6 +81,7 @@ const symptomCategories = [
 export default function DailyTrackingScreen() {
   const { theme } = useTheme();
   const c = theme.colors;
+  const router = useRouter();
 
   const getToday = new Date();
 
@@ -146,6 +146,11 @@ export default function DailyTrackingScreen() {
     const user = auth.currentUser;
     if (!user) return;
 
+    const userDocRef = doc(db, 'users', user.uid);
+    const userSnapshot = await getDoc(userDocRef);
+    const userCycleLength: number = userSnapshot.exists() ? (userSnapshot.data().cycleLength ?? 28) : 28;
+
+
     const logsRef = collection(db, 'users', user.uid, 'dailyLogs');
     const snapshot = await getDocs(logsRef);
 
@@ -194,19 +199,25 @@ export default function DailyTrackingScreen() {
 
     setIsBleedingToday(!!todayLog && todayLog.bleeding !== "None");
 
+    const computedAvg = progress?.avgLength ?? null;
+
 
     setCycleDay(dayOfCycle);
-    setAvgCycleLength(progress?.avgLength ?? null);
+    setAvgCycleLength(computedAvg !== null ? Math.max(computedAvg, userCycleLength) : userCycleLength);
     setNextPeriodDate(nextPeriod ?? null);
     setLoadingCycleData(false);
   };
 
+  useEffect(() => {
+    fetchCycleData();
+    }, [fetchCycleData]);
+
   useFocusEffect(
     useCallback(() => {
       fetchCycleData();
-    }, [])
+    }, [fetchCycleData])
   );
-  
+        
 
 
   const handleLog = async () => {
