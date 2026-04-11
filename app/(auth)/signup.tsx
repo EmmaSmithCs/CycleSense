@@ -37,6 +37,8 @@ export default function Signup() {
         setLoading(false);
     };
 
+
+    
     return (
         <KeyboardAvoidingView
             style={styles.container}
@@ -241,7 +243,7 @@ const styles = StyleSheet.create({
         color: "#aaa",
         fontSize: 14,
     },
-    
+
     footerLink: {
         color: "#f06292",
         fontSize: 14,

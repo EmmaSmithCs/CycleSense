@@ -1,6 +1,7 @@
 //app/(tabs)/settings.tsx
 
 import { ThemeName, themes } from '@/constants/theme';
+import { useGamification } from '@/context/GamificationContext';
 import { useTheme } from '@/context/ThemeContext';
 import { auth } from '@/firebase/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -12,6 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import NotificationTester from '../../components/NotificationTester';
 import { db } from '../../firebase/config';
 import { cancelNotification, notifyUpcomingSymptomsForUser, requestNotificationPermission, scheduleDailyNotification, scheduleNotification, schedulePeriodReminderFromLogs } from '../utils/notifications';
+
 
 export default function SettingsScreen() {
     const { theme, themeName, setTheme } = useTheme();
@@ -38,6 +40,8 @@ export default function SettingsScreen() {
         await scheduleNotification("📋 Daily Tracking Reminder", "Don't forget to log your daily symptoms and mood!", new Date(now + 15000));
         await notifyUpcomingSymptomsForUser(new Date(now + 20000));
     };
+
+    const { setGamificationEnabled: setContextGamificationEnabled } = useGamification();
 
     // Notifs
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -97,6 +101,7 @@ export default function SettingsScreen() {
                 dateFormat,
                 gamificationEnabled,
             });
+            setContextGamificationEnabled(gamificationEnabled);
             setPrefsSaved(true);
             setTimeout(() => setPrefsSaved(false), 2500);
         } catch (error) {
@@ -152,8 +157,7 @@ export default function SettingsScreen() {
 
             const id = await schedulePeriodReminderFromLogs(logs, 2);
             if (id) {
-                const reminderId =
-                    typeof id === 'string' ? id : (id as unknown as { identifier: string }).identifier;
+                const reminderId = typeof id === 'string' ? id : id.id;
                 setPeriodReminderEnabledID(reminderId);
                 await AsyncStorage.setItem(NOTIF_KEYS.period, reminderId);
             }
@@ -198,24 +202,13 @@ export default function SettingsScreen() {
         if (value && notificationsEnabled) {
             const granted = await requestNotificationPermission();
             if (!granted) {
-                setInsightsEnabledID(null);
                 alert("Notification permission is required to enable insights notifications.");
                 return;
             }
-
-            // Schedule first fire at next 9 AM
-            const now = new Date();
-            const next9am = new Date();
-            next9am.setHours(9, 0, 0, 0);
-            if (now >= next9am) {
-                next9am.setDate(next9am.getDate() + 1);
-            }
-
-            const id = await notifyUpcomingSymptomsForUser(next9am);    
-            setInsightsEnabledID(id || null);
-            if (id) await AsyncStorage.setItem(NOTIF_KEYS.insights, id);
+            // Just save the preference — actual insights fire when available
+            setInsightsEnabledID('enabled');
+            await AsyncStorage.setItem(NOTIF_KEYS.insights, 'enabled');
         } else {
-            if (insightsID) await cancelNotification(insightsID);
             setInsightsEnabledID(null);
             await AsyncStorage.removeItem(NOTIF_KEYS.insights);
         }

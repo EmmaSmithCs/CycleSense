@@ -92,8 +92,8 @@ export async function schedulePeriodReminderFromLogs(
     // 4. Safety fallback (never schedule in past)
     const now = new Date();
     if (reminderDate <= now) {
-        console.log("⚠️ Reminder date in past, shifting to +5s test mode");
-        reminderDate.setTime(now.getTime() + 5000);
+        console.log("⚠️ Reminder date in past");
+        return null;
     }
 
     console.log("📅 Prediction debug:", {

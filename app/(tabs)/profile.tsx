@@ -1,5 +1,7 @@
 // app/(tabs)/profile.tsx
 
+import GamificationSection from '@/components/GamificationSection';
+import { useGamification } from '@/context/GamificationContext';
 import { useTheme } from '@/context/ThemeContext';
 import { logout } from '@/firebase/auth';
 import { auth, db, storage } from '@/firebase/config';
@@ -7,12 +9,12 @@ import { Ionicons } from '@expo/vector-icons';
 import { format, subDays, subMonths } from 'date-fns';
 import * as ImagePicker from 'expo-image-picker';
 import * as Print from 'expo-print';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { deleteUser, EmailAuthProvider, reauthenticateWithCredential, updatePassword } from 'firebase/auth';
 import { collection, deleteDoc, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import { getDownloadURL, ref, uploadBytes } from 'firebase/storage';
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -25,6 +27,8 @@ export default function ProfileScreen() {
 
     const { theme } = useTheme();
     const c = theme.colors;
+
+    const { refreshGamification } = useGamification();
 
     // Profile data
     const [userName, setUserName] = useState('');
@@ -57,6 +61,12 @@ export default function ProfileScreen() {
         };
         fetchUser();
     }, []);
+
+    useFocusEffect(
+        useCallback(() => {
+            refreshGamification();
+        }, [refreshGamification])
+    );
 
     // Profile image
     const handlePickImage = async () => {
@@ -456,16 +466,9 @@ export default function ProfileScreen() {
                     </View>
                 )}
 
-                {/* Gamification PLACEHOLDER */}
-                <View style={[styles.row, styles.rowDisabled, { borderBottomColor: c.border }]}>
-                    <Ionicons name="trophy-outline" size={20} color={c.textMuted} style={styles.rowIcon} />
-                    <View style={{ flex: 1}}>
-                        <Text style={[styles.comingSoon, { color: c.textMuted }]}>Coming Soon!</Text>
-                    </View>
-                    <View style={[styles.comingSoonBadge, { backgroundColor: c.surface }]}>
-                        <Text style={styles.comingSoonBadgeText}>🔒</Text>
-                    </View>
-                </View>
+                {/* Gamification  */}
+                <Text style={[styles.sectionHeader, { color: c.textMuted }]}>Achievements</Text>
+                <GamificationSection />
 
                 {/* DANGEROUS Things */}
 

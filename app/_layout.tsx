@@ -5,6 +5,7 @@ import { onAuthStateChanged, User } from "firebase/auth";
 import { doc, onSnapshot } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import 'react-native-reanimated';
+import { GamificationProvider } from '../context/GamificationContext';
 import { auth, db } from "../firebase/config";
 
 export default function RootLayout() {
@@ -57,10 +58,12 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="(auth)" />
-      </Stack>
+        <GamificationProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="(auth)" />
+            </Stack>
+        </GamificationProvider>
     </ThemeProvider>
   );
 }

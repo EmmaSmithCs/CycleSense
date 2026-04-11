@@ -18,7 +18,8 @@ export async function signup(email: string, password: string): Promise<User> {
     // Create a user document in Firestore
     await setDoc(doc(db, "users", user.uid), {
         email: user.email,
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
+        onboarded: false,
     });
     
     return userCredential.user;
