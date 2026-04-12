@@ -1,6 +1,9 @@
+// (tabs)/index.tsx
 import { useGamification } from '@/context/GamificationContext';
 import { useTheme } from '@/context/ThemeContext';
 import { auth } from '@/firebase/config';
+import { onAuthStateChanged } from '@firebase/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { addDays, differenceInCalendarDays, format } from 'date-fns';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
@@ -12,6 +15,7 @@ import StreakWidget from '../../components/StreakWidget';
 import { db } from '../../firebase/config';
 import { saveDailyLog } from '../../firebase/dailyLogs';
 import { buildCycles, DailyLog, getCycleProgress, predictNextPeriod } from '../utils/cyclePrediction';
+
 
 const intensitySymptoms = ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia", "Bloating", "Gas", "Diarrhoea", "Constipation"];
 
@@ -104,6 +108,8 @@ export default function DailyTrackingScreen() {
     const [symptomsWithIntensity, setSymptomsWithIntensity] = useState<SymptomEntry[]>([]);
     const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
     const [selectedIntensity, setSelectedIntensity] = useState<number>(3);
+    const [cycleDataLoadedOnce, setCycleDataLoadedOnce] = useState(false);
+    const [userReady, setUserReady] = useState(false);
 
     const getGreeting = () => {
         const hour = new Date().getHours();
@@ -113,19 +119,38 @@ export default function DailyTrackingScreen() {
     };
 
     useEffect(() => {
-        const fetchUserName = async () => {
-            const currentUser = auth.currentUser;
-            if (!currentUser) return;
-            const userDocRef = doc(db, 'users', currentUser.uid);
-            const userSnapshot = await getDoc(userDocRef);
-            if (userSnapshot.exists()) {
-                const data = userSnapshot.data();
-                setUserName(data.name || "User");
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            if (!user) {
+                setLoading(false);
+                return;
             }
+
+            const userDocRef = doc(db, 'users', user.uid);
+            const userSnapshot = await getDoc(userDocRef);
+
+            if (userSnapshot.exists()) {
+                setUserName(userSnapshot.data().name || "User");
+            }
+
             setLoading(false);
-        };
-        fetchUserName();
+        });
+
+        return unsubscribe;
     }, []);
+
+    useEffect(() => {
+        const unsubscribe = onAuthStateChanged(auth, (user) => {
+            setUserReady(!!user);
+        });
+
+        return unsubscribe;
+    }, []);
+
+    useEffect(() => {
+        if (userReady) {
+            fetchCycleData();
+        }
+    }, [userReady]);
 
     const dateRange = Array.from({ length: 7 }, (_, i) => addDays(getToday, i - 3));
 
@@ -164,6 +189,7 @@ export default function DailyTrackingScreen() {
             setAvgCycleLength(null);
             setNextPeriodDate(null);
             setPeriodLength(null);
+            setCycleDataLoadedOnce(true);
             setLoadingCycleData(false);
             return;
         }
@@ -196,23 +222,22 @@ export default function DailyTrackingScreen() {
         setCycleDay(dayOfCycle);
         setAvgCycleLength(computedAvg !== null ? Math.max(computedAvg, userCycleLength) : userCycleLength);
         setNextPeriodDate(nextPeriod ?? null);
+        setCycleDataLoadedOnce(true);
         setLoadingCycleData(false);
+        
     };
 
-    useEffect(() => {
-        fetchCycleData();
-    }, [fetchCycleData]);
 
     useFocusEffect(
         useCallback(() => {
             fetchCycleData();
-        }, [fetchCycleData])
+        }, [])
     );
 
     useFocusEffect(
         useCallback(() => {
             refreshGamification();
-        }, [refreshGamification])
+        }, [])
     );
 
     const handleLog = async () => {
@@ -241,6 +266,9 @@ export default function DailyTrackingScreen() {
         setSymptoms([]);
         setSymptomsWithIntensity([]);
         setNotes("");
+
+        const incognito = await AsyncStorage.getItem('privacyIncognitoLogging');
+        if (incognito === 'true') return;
 
         const dateStr = format(date, "yyyy-MM-dd");
         const logRef = doc(db, "users", auth.currentUser.uid, "dailyLogs", dateStr);
@@ -279,7 +307,7 @@ export default function DailyTrackingScreen() {
         }
     };
 
-    if (loading || loadingCycleData) {
+    if (loading || (!cycleDataLoadedOnce && loadingCycleData)) {
         return (
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.background }}>
                 <ActivityIndicator size="large" color={c.primary} />

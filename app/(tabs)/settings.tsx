@@ -6,6 +6,7 @@ import { useTheme } from '@/context/ThemeContext';
 import { auth } from '@/firebase/config';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { collection, doc, getDoc, getDocs, updateDoc } from 'firebase/firestore';
 import React, { useEffect, useState } from 'react';
 import { Modal, ScrollView, StyleSheet, Switch, Text, TouchableOpacity, View } from 'react-native';
@@ -13,7 +14,6 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import NotificationTester from '../../components/NotificationTester';
 import { db } from '../../firebase/config';
 import { cancelNotification, notifyUpcomingSymptomsForUser, requestNotificationPermission, scheduleDailyNotification, scheduleNotification, schedulePeriodReminderFromLogs } from '../utils/notifications';
-
 
 export default function SettingsScreen() {
     const { theme, themeName, setTheme } = useTheme();
@@ -25,6 +25,12 @@ export default function SettingsScreen() {
         daily: "dailyTrackingEnabledID",
         insights: "insightsEnabledID",
     }
+
+    const PRIVACY_KEYS = {
+        appLock: "privacyAppLock",
+        hideInSwitcher: "privacyHideInSwitcher",
+        incognitoLogging: "privacyIncognitoLogging",
+    };
     
     type DailyLog = {
         id: string;
@@ -41,7 +47,7 @@ export default function SettingsScreen() {
         await notifyUpcomingSymptomsForUser(new Date(now + 20000));
     };
 
-    const { setGamificationEnabled: setContextGamificationEnabled } = useGamification();
+    const { refreshGamification } = useGamification();
 
     // Notifs
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -61,6 +67,20 @@ export default function SettingsScreen() {
     const [prefsSaved, setPrefsSaved] = useState(false);
     const [showDisclaimer, setShowDisclaimer] = useState(false);
 
+    // Privacy
+    const [appLockEnabled, setAppLockEnabled] = useState(false);
+    const [hideInSwitcherEnabled, setHideInSwitcherEnabled] = useState(false);
+    const [incognitoLoggingEnabled, setIncognitoLoggingEnabled] = useState(false);
+    const [biometricsEnabled, setBiometricsEnabled] = useState(false);
+
+    useEffect(() => {
+        (async () => {
+            const compatible = await LocalAuthentication.hasHardwareAsync();
+            const enrolled = await LocalAuthentication.isEnrolledAsync();
+            setBiometricsEnabled(compatible && enrolled);
+        })();
+    }, []);
+
     useEffect(() => {
         (async () => {
             const savedNotifications = await AsyncStorage.getItem(NOTIF_KEYS.notifications);
@@ -69,6 +89,10 @@ export default function SettingsScreen() {
             const savedInsightsID = await AsyncStorage.getItem(NOTIF_KEYS.insights);
             const savedDailyHour = await AsyncStorage.getItem('dailyHour');
             const savedDailyMinute = await AsyncStorage.getItem('dailyMinute');
+            const savedAppLock = await AsyncStorage.getItem(PRIVACY_KEYS.appLock);
+            const savedHideInSwitcher = await AsyncStorage.getItem(PRIVACY_KEYS.hideInSwitcher);
+            const savedIncognitoLogging = await AsyncStorage.getItem(PRIVACY_KEYS.incognitoLogging);
+
 
             if (savedNotifications !== null) setNotificationsEnabled(JSON.parse(savedNotifications));
             if (savedPeriodID) setPeriodReminderEnabledID(savedPeriodID);
@@ -76,6 +100,9 @@ export default function SettingsScreen() {
             if (savedInsightsID) setInsightsEnabledID(savedInsightsID);
             if (savedDailyHour) setDailyHour(parseInt(savedDailyHour));
             if (savedDailyMinute) setDailyMinute(parseInt(savedDailyMinute, 10));
+            if (savedAppLock) setAppLockEnabled(JSON.parse(savedAppLock));
+            if (savedHideInSwitcher) setHideInSwitcherEnabled(JSON.parse(savedHideInSwitcher));
+            if (savedIncognitoLogging) setIncognitoLoggingEnabled(JSON.parse(savedIncognitoLogging));
 
             const user = auth.currentUser;
             if (!user) return;
@@ -90,6 +117,37 @@ export default function SettingsScreen() {
         })()
     }, []);
 
+    const handleToggleAppLock = async (value: boolean) => {
+        if (value) {
+            if (!biometricsEnabled) {
+                alert("Biometric authentication is not available or set up on this device.");
+                return;
+            }
+            const authResult = await LocalAuthentication.authenticateAsync({
+                promptMessage: "Confirm your identity to enable app lock",
+                fallbackLabel: "Use Passcode",
+            });
+            if (!authResult.success) {
+                alert("Authentication failed. App lock not enabled.");
+                return;
+            }
+        };
+        setAppLockEnabled(value);
+        await AsyncStorage.setItem(PRIVACY_KEYS.appLock, JSON.stringify(value));
+    };
+
+    const handleToggleHideInSwitcher = async (value: boolean) => {
+        setHideInSwitcherEnabled(value);
+        await AsyncStorage.setItem(PRIVACY_KEYS.hideInSwitcher, JSON.stringify(value));
+    };
+
+    const handleToggleIncognitoLogging = async (value: boolean) => {
+        setIncognitoLoggingEnabled(value);
+        await AsyncStorage.setItem(PRIVACY_KEYS.incognitoLogging, JSON.stringify(value));
+    };
+
+
+
     const handleSavePreferences = async () => {
         const user = auth.currentUser;
         if (!user) return;
@@ -101,7 +159,7 @@ export default function SettingsScreen() {
                 dateFormat,
                 gamificationEnabled,
             });
-            setContextGamificationEnabled(gamificationEnabled);
+            refreshGamification();
             setPrefsSaved(true);
             setTimeout(() => setPrefsSaved(false), 2500);
         } catch (error) {
@@ -157,7 +215,7 @@ export default function SettingsScreen() {
 
             const id = await schedulePeriodReminderFromLogs(logs, 2);
             if (id) {
-                const reminderId = typeof id === 'string' ? id : id.id;
+                const reminderId = id.id;
                 setPeriodReminderEnabledID(reminderId);
                 await AsyncStorage.setItem(NOTIF_KEYS.period, reminderId);
             }
@@ -481,13 +539,67 @@ export default function SettingsScreen() {
                 </View>
 
 
-                {/* PLACEHOLDER FUTURE SETTINGS */}
-                <Text style={[styles.sectionTitle, { color: c.textMuted }]}>Privacy</Text>
-                <View style={[styles.card, styles.comingSoonCard, { backgroundColor: c.card, borderColor: c.border }]}>
-                    <Text style={styles.comingSoonEmoji}>🔒</Text>  
-                    <Text style={[styles.comingSoonTitle, { color: c.textMuted }]}>Coming soon</Text>
-                    <Text style={[styles.comingSoonText, { color: c.textMuted }]}>Privacy options! Stay tuned!</Text>
+                {/* Privacy */}
+                <Text style={[styles.sectionTitle, { color: c.textMuted }]}>Privacy & Security</Text>
+                <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
+
+                    <View style={styles.preferenceRow}>
+                        <View style={styles.preferenceLabelWrap}>
+                            <Text style={[styles.preferenceLabel, {color: c.text}]}>App Lock</Text>
+                            <Text style={[styles.preferenceHint, {color: c.textMuted}]}>
+                                {biometricsEnabled ? "Require biometric authentication to open the app" : "Biometric authentication not available"}
+                            </Text>
+                        </View>
+                        <Switch
+                            value={appLockEnabled}
+                            onValueChange={handleToggleAppLock}
+                            trackColor={{ false: c.border, true: c.primary }}
+                            thumbColor={c.surface}
+                            disabled={!biometricsEnabled}
+                        />
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: c.border}]} />
+
+                    <View style={styles.preferenceRow}>
+                        <View style={styles.preferenceLabelWrap}>
+                            <Text style={[styles.preferenceLabel, {color: c.text}]}>Hide in App Switcher</Text>
+                            <Text style={[styles.preferenceHint, {color: c.textMuted}]}>
+                                Prevent app content from appearing in the app switcher (iOS only)
+                            </Text>
+                        </View>
+                        <Switch
+                            value={hideInSwitcherEnabled}
+                            onValueChange={handleToggleHideInSwitcher}
+                            trackColor={{ false: c.border, true: c.primary }}
+                            thumbColor={c.surface}
+                        />
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: c.border}]} />
+
+                    <View style={styles.preferenceRow}>
+                        <View style={styles.preferenceLabelWrap}>
+                            <Text style={[styles.preferenceLabel, {color: c.text}]}>Incognito Logging</Text>
+                            <Text style={[styles.preferenceHint, {color: c.textMuted}]}>
+                                Previously saved entries on the main page will be hidden when this is enabled. They will only be visible on the history page.
+                            </Text>
+                        </View>
+                        <Switch
+                            value={incognitoLoggingEnabled}
+                            onValueChange={handleToggleIncognitoLogging}
+                            trackColor={{ false: c.border, true: c.primary }}
+                            thumbColor={c.surface}
+                        />
+                    </View>
+
+                    <View style={[styles.privacyNote, {backgroundColor: c.surface, borderColor: c.border}]}>
+                        <Text style={[styles.privacyNoteText, {color: c.textMuted}]}>
+                            Your data is stored privately in your acocunt and is never shared or sold.
+                        </Text>
+                    </View>
                 </View>
+
 
 
 
@@ -795,6 +907,18 @@ const styles = StyleSheet.create({
         lineHeight: 22,
     },
 
+    privacyNote: {
+        borderRadius: 10,
+        padding: 12,
+        marginTop: 16,
+        borderWidth: 1,
+    },
+
+    privacyNoteText: {
+        fontSize: 12,
+        lineHeight: 18,
+        textAlign: 'center',
+    },
 
 
 });
