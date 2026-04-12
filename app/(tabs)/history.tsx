@@ -1,7 +1,7 @@
 import { useTheme } from '@/context/ThemeContext';
 import { auth, db } from '@/firebase/config';
 import { useFocusEffect } from '@react-navigation/native';
-import { format } from 'date-fns';
+import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { collection, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useState } from 'react';
 import { ActivityIndicator, Alert, Button, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
@@ -81,9 +81,21 @@ type DailyLog = {
   symptoms: string[] | SymptomEntry[];
   date?: string;
   notes?: string;
-}
+};
 
+const BLEEDING_COLORS: Record<string, string> = {
+    Heavy: "#c2185b",
+    Medium: "#e361a8",
+    Light: "#f5a9cb",
+    None: "#64b5fb",
+};
 
+const BLEEDING_LABELS: Record<string, string> = {
+    Heavy: "🩸🩸🩸",
+    Medium: "🩸🩸",
+    Light: "🩸",
+    None: "o",
+};
 
 export default function HistoryScreen() {
     const { theme } = useTheme();
@@ -99,24 +111,54 @@ export default function HistoryScreen() {
     const [symptomsWithIntensity, setSymptomsWithIntensity] = useState<SymptomEntry[]>([]);
     const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
     const [selectedIntensity, setSelectedIntensity] = useState<number>(3);
-
-
+    const [allLogs, setAllLogs] = useState<{ id: string; bleeding: string; symptomCount: number }[]>([]);
+    
     const [bleeding, setBleeding] = useState<"None" | "Light" | "Medium" | "Heavy">("None");
     const [symptoms, setSymptoms] = useState<string[]>([]);
 
+    const getStats = () => {
+        const sorted = [...allLogs]
+            .filter(l => l.bleeding !== "None")
+            .sort((a, b) => a.id.localeCompare(b.id));
+
+        // Group consecutive bleeding days into periods
+        const periodStarts: string[] = [];
+        sorted.forEach((log, i) => {
+            const prev = sorted[i - 1];
+            const daysSincePrev = prev
+                ? differenceInCalendarDays(parseISO(log.id), parseISO(prev.id))
+                : 999;
+            if (daysSincePrev > 2) {
+                periodStarts.push(log.id);
+            }
+        });
+
+        const lastPeriodStart = periodStarts[periodStarts.length - 1];
+        const cycleDay = lastPeriodStart
+            ? differenceInCalendarDays(new Date(), parseISO(lastPeriodStart)) + 1
+            : null;
+
+        let avgLength: number | null = null;
+        if (periodStarts.length >= 2) {
+            const gaps = [];
+            for (let i = 1; i < periodStarts.length; i++) {
+                gaps.push(differenceInCalendarDays(parseISO(periodStarts[i]), parseISO(periodStarts[i - 1])));
+            }
+            avgLength = Math.round(gaps.reduce((a, b) => a + b, 0) / gaps.length);
+        }
+
+        const nextPeriod = lastPeriodStart && avgLength
+            ? differenceInCalendarDays(
+                new Date(parseISO(lastPeriodStart).getTime() + avgLength * 86400000),
+                new Date()
+            )
+            : null;
+
+        return { cycleDay, avgLength, nextPeriod, totalLogs: allLogs.length };
+    };
+
     const getDotColor = (bleeding: string) => {
-      switch (bleeding) {
-        case "Heavy":
-          return "#ff1a75";
-        case "Medium":
-          return "#ff66b3";
-        case "Light":
-          return "#ff99cc";
-        case "None":
-          return "#66ccff";
-        default:
-          return c.primary;
-      }
+      return BLEEDING_COLORS[bleeding] || BLEEDING_COLORS["None"];
     };
 
     const loadMarkedDates = async () => {
@@ -127,12 +169,18 @@ export default function HistoryScreen() {
       const snapshot = await getDocs(logsRef);
 
       const marked: any = {};
+      const logs: { id: string; bleeding: string; symptomCount: number }[] = [];
 
       snapshot.docs.forEach((doc) => {
           marked[doc.id] = {
               marked: true,
               dotColor: getDotColor(doc.data().bleeding || "None"),
           };
+          logs.push({
+              id: doc.id,
+              bleeding: doc.data().bleeding || "None",
+              symptomCount: (doc.data().symptoms || []).length,
+          });
       });
 
       const todayStr = format(new Date(), 'yyyy-MM-dd');
@@ -140,9 +188,12 @@ export default function HistoryScreen() {
         ...(marked[todayStr] || {}),
         selected: true,
         selectedColor: c.primary,
+        marked: !!(marked[todayStr]?.marked),
+        dotColor: marked[todayStr]?.dotColor,
       };
 
       setMarkedDates(marked);
+      setAllLogs(logs);
       setLoading(false);
     };
 
@@ -275,6 +326,8 @@ export default function HistoryScreen() {
       setSelectedDate(null);
     };
 
+    const stats = getStats();
+    const recentLogs = [...allLogs].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 6);
 
     if (loading) {
         return (
@@ -286,24 +339,100 @@ export default function HistoryScreen() {
 
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: c.background }]}>
-        <Text style={[styles.title, { color: c.text }]}>History</Text>
+        <ScrollView showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+            <Text style={[styles.title, { color: c.text }]}>History</Text>
 
-        <Calendar
-          key={calendarKey}
-          current ={format(new Date(), 'yyyy-MM-dd')}
-          markedDates={markedDates}
-          onDayPress={onDayPress}
-          theme={{
-            calendarBackground: c.card,
-            dayTextColor: c.text,
-            monthTextColor: c.text,
-            todayTextColor: c.primary,
-            arrowColor: c.primary,
-            selectedDayBackgroundColor: c.primary,
-            dotColor: c.primary,
-            textDisabledColor: c.textMuted,
-          }}
-        />
+            <View style={styles.statsRow}>
+                {[
+                    { label: "Cycle Day", value: stats.cycleDay ? `${stats.cycleDay}` : "N/A" },
+                    { label: "Average Length", value: stats.avgLength ? `${stats.avgLength} days` : "N/A" },
+                    { label: "Next Period", value: stats.nextPeriod !==  null ? `${stats.nextPeriod} days` : "N/A" },
+                    { label: "Logs", value: `${stats.totalLogs}` },
+                ].map((stat, i) => (
+                    <View key={i} style={[styles.statCard, { backgroundColor: c.card, borderColor: c.border }]}>
+                        <Text style={[styles.statValue, { color: c.primary }]}>{stat.value}</Text>
+                        <Text style={[styles.statLabel, { color: c.textMuted }]}>{stat.label}</Text>
+                    </View>
+                ))}
+            </View> 
+
+            <View style={[ styles.calendarCard, { backgroundColor: c.card, borderColor: c.border }]}>
+                <Calendar
+                    key={calendarKey}
+                    current={format(new Date(), 'yyyy-MM-dd')}
+                    markedDates={markedDates}
+                    onDayPress={onDayPress}
+                    markingType={'dot'}
+                    theme={{
+                        calendarBackground: 'transparent',
+                        dayTextColor: c.text,
+                        monthTextColor: c.text,
+                        todayTextColor: c.primary,
+                        arrowColor: c.primary,
+                        selectedDayBackgroundColor: c.primary,
+                    
+                        textDisabledColor: c.textMuted,
+                        textDayFontSize: 14,
+                        textMonthFontSize: 15,
+                        textDayHeaderFontSize: 12,
+                        textDayFontWeight: "400",
+                        textMonthFontWeight: "700",
+                        textDayHeaderFontWeight: "500",
+                        
+                    }}
+                />
+            </View>
+
+            <View style={[ styles.legendRow, { backgroundColor: c.card, borderColor: c.border }]}>
+                {[
+                    { label: "Heavy", color: BLEEDING_COLORS["Heavy"] },
+                    { label: "Medium", color: BLEEDING_COLORS["Medium"] },
+                    { label: "Light", color: BLEEDING_COLORS["Light"] },
+                    { label: "None", color: BLEEDING_COLORS["None"] },
+                ].map((item, i) => (
+                    <View key={i} style={styles.legendItem}>
+                        <View style={[styles.legendDot, { backgroundColor: item.color }]} />
+                        <Text style={[styles.legendLabel, { color: c.text }]}>{item.label}</Text>
+                    </View>
+                ))}
+            </View>
+
+            {recentLogs.length > 0 && (
+                <View style={{ marginTop: 20 }}>
+                    <Text style={[styles.sectionTitle, { color: c.text }]}>Recent Logs</Text>
+                    {recentLogs.map((log) => (
+                        <TouchableOpacity
+                            key={log.id}
+                            onPress={() => onDayPress({ dateString: log.id})}
+                            activeOpacity={0.75}
+                        >
+                            <View style={[styles.recentCard, { backgroundColor: c.card, borderColor: c.border }]}>
+                                <View style={[styles.recentLeft, { backgroundColor: BLEEDING_COLORS[log.bleeding] + '33' }]}>
+                                    <Text style={[styles.recentBleedingIcon, { color: c.primary}]}>
+                                        {BLEEDING_LABELS[log.bleeding]}
+                                    </Text>
+                                </View> 
+                                <View style={styles.recentMid}>
+                                    <Text style={[styles.recentDate, { color: c.text }]}>
+                                        {format(parseISO(log.id), 'EEE d MMM')}
+                                    </Text>
+                                    <Text style={[styles.recentSub, { color: c.textMuted}]}>
+                                        {log.symptomCount > 0 ? `${log.symptomCount} symptom${log.symptomCount > 1 ? 's' : ''}` : 'No symptoms logged'}
+                                    </Text>
+                                </View>
+                                <View style={[styles.bleedingBadge, { backgroundColor: BLEEDING_COLORS[log.bleeding] + '22', borderColor: BLEEDING_COLORS[log.bleeding] + '55' }]}>
+                                    <Text style={[styles.bleedingBadgeText, { color:log.bleeding === "None" ? c.textMuted : "#d63a6e" }]}>
+                                        {BLEEDING_LABELS[log.bleeding]}
+                                    </Text>
+                                </View>
+                            </View>
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            )}
+
+        </ScrollView>
+        
 
         <Modal visible={modalVisible} animationType="slide" transparent statusBarTranslucent onRequestClose={closeModal}>
           <SafeAreaView style={styles.modalBackground}>
@@ -450,81 +579,202 @@ export default function HistoryScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    padding: 20,
-  },
+    container: {
+        flex: 1,
+        padding: 20,
+    },
 
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    marginBottom: 10,
-  },
+    title: {
+        fontSize: 22,
+        fontWeight: "bold",
+        marginBottom: 10,
+    },
 
-  modalBackground: {
-    flex: 1,
-    backgroundColor: "#000000aa",
-    justifyContent: "center",
-  },
+    modalBackground: {
+        flex: 1,
+        backgroundColor: "#000000aa",
+        justifyContent: "center",
+    },
 
-  modalContainer: {
-    marginHorizontal: 20,
-    padding: 20,
-    borderRadius: 10,
-  },
+    modalContainer: {
+        marginHorizontal: 20,
+        padding: 20,
+        borderRadius: 10,
+    },
 
-  modalTitle: {
-    fontWeight: "bold",
-    fontSize: 18,
-    marginBottom: 10,
-  },
+    modalTitle: {
+        fontWeight: "bold",
+        fontSize: 18,
+        marginBottom: 10,
+    },
 
-  centered: {
-    flex: 1,
-    justifyContent: "center",
-    alignItems: "center",
-  },
+    centered: {
+        flex: 1,
+        justifyContent: "center",
+        alignItems: "center",
+    },
 
-  optionButton: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 5,
-  },
+    optionButton: {
+        paddingVertical: 8,
+        paddingHorizontal: 12,
+        borderRadius: 8,
+        marginBottom: 5,
+    },
 
-  categoryCard: {
-    width: 180,
-    padding: 10,
-    borderRadius: 12,
-    marginRight: 12,
-  },
+    categoryCard: {
+        width: 180,
+        padding: 10,
+        borderRadius: 12,
+        marginRight: 12,
+    },
 
-  categoryTitle: {
-    fontWeight: "bold",
-    marginBottom: 6,
-    fontSize: 14,
-  },
+    categoryTitle: {
+        fontWeight: "bold",
+        marginBottom: 6,
+        fontSize: 14,
+    },
 
-  symptomChip: {
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 20,
-    marginBottom: 6,
-    alignSelf: "flex-start",
-  },
+    symptomChip: {
+        paddingVertical: 6,
+        paddingHorizontal: 8,
+        borderRadius: 20,
+        marginBottom: 6,
+        alignSelf: "flex-start",
+    },
 
-  modalCard: {
-    marginHorizontal: 20,
-    borderRadius: 12,
-    maxHeight: "90%",
-  },
+    modalCard: {
+        marginHorizontal: 20,
+        borderRadius: 12,
+        maxHeight: "90%",
+    },
 
-  modalScrollContent: {
-    padding: 20,
-    paddingBottom: 40,
-  }
+    lScrollContent: {
+        padding: 20,
+        paddingBottom: 40,
+    },
 
+    statsRow: {
+        flexDirection: "row",
+        gap: 8,
+        marginBottom: 14,
+    },
+
+    statCard: {
+        flex: 1,
+        borderRadius: 12,
+        borderWidth: 1,
+        padding: 10,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+
+    statValue: {
+        fontSize: 16,
+        fontWeight: "700",
+        marginBottom: 2,
+        textAlign: "center",
+    },
+
+    statLabel: {
+        fontSize: 10,
+        fontWeight: "500",
+        letterSpacing: 0.3,
+        textAlign: "center",
+    },
+
+    calendarCard: {
+        borderRadius: 16,
+        borderWidth: 1,
+        overflow: "hidden",
+        paddingHorizontal: 4,
+        paddingBottom: 8,
+    },
+
+    legendRow: {
+        flexDirection: "row",
+        justifyContent: "space-around",
+        borderRadius: 12,
+        borderWidth: 1,
+        paddingVertical: 10,
+        marginTop: 10,
+    },
+
+    legendItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: 5,
+    },
+
+    legendDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+    },
+
+    legendLabel: {
+        fontSize: 11,
+    },
+
+    sectionTitle: {
+        fontSize: 16,
+        fontWeight: "700",
+        marginBottom: 10,
+    },
+
+    recentCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        borderRadius: 12,
+        borderWidth: 1,
+        marginBottom: 10,
+        overflow: "hidden",
+    },
+
+    recentLeft: {
+        width: 48,
+        height: 48,
+        justifyContent: "center",
+        alignItems: "center",
+    },
+
+    recentBleedingIcon: {
+        fontSize: 14,
+    },
+
+    recentMid: {
+        flex: 1,
+        paddingHorizontal: 12,
+    },
+
+    recentDate: {
+        fontSize: 14,
+        fontWeight: "600",
+    },
+
+    recentSub: {
+        fontSize: 12,
+        marginTop: 2,
+    },
+
+    bleedingBadge: {
+        marginRight: 12,
+        paddingVertical: 4,
+        paddingHorizontal: 10,
+        borderRadius: 20,
+        borderWidth: 1,
+    },
+
+    bleedingBadgeText: {
+        fontSize: 11,
+        fontWeight: "600",
+    },
+
+    modalScrollContent: {
+        padding: 20,
+        paddingBottom: 40,
+    },
     
+
 });
 
 
