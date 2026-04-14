@@ -373,7 +373,6 @@ export default function InsightsScreen() {
 
                 console.log("Recent past logs found:", recentPastLogs.length);
                 console.log("Sym intensity:", sym.intensity);
-
                 if (recentPastLogs.length < 2 || sym.intensity === undefined) {
                     console.log("SKIPPED - not enough logs or no intensity");
                     return;
@@ -448,34 +447,59 @@ export default function InsightsScreen() {
             return null;
         };
 
-        const symptomDayCount: Record<string, Record<number, number>> = {};
+        const symptomDayWeighted: Record<string, Record<number, number>> = {};
         const symptomPhaseCount: Record<string, Record<string, number>> = {};
+
+        const CYCLE_WEIGHTS = [1, 0.7, 0.4]; // More recent cycles count more
+        
+        const cycleIndexMap = new Map<string, { cycleIndex: number; cycleDay: number }>();
+        const last3ForWeighting = cycles.slice(-3);
+
+        last3ForWeighting.forEach((cycle, i) => {
+            const start = new Date(cycle.startDate);
+            const end = new Date(cycle.endDate);
+            let current = new Date(start);
+            while (current <= end) {
+                const dateStr = format(current, 'yyyy-MM-dd');
+                const day = differenceInCalendarDays(current, start) + 1;
+                cycleIndexMap.set(dateStr, { cycleIndex: (last3ForWeighting.length - 1) - i, cycleDay: day });
+                current.setDate(current.getDate() + 1);
+
+            }
+        });
 
         logs.forEach(log => {
             if (!log.date) return;
             const cyclePosition = getCycleDayForDate(log.date);
             if (!cyclePosition) return;
             const { day: logCycleDay, phase: logPhase } = cyclePosition;
+            
+            const mapped = cycleIndexMap.get(log.date);
+            const weight = mapped !== undefined ? (CYCLE_WEIGHTS[mapped.cycleIndex] ?? 0) : 0;
+
+
             log.symptoms.forEach(sym => {
                 const name = sym.name;
                 if (!symptomPhaseCount[name]) symptomPhaseCount[name] = {};
                 if (!symptomPhaseCount[name][logPhase]) symptomPhaseCount[name][logPhase] = 0;
                 symptomPhaseCount[name][logPhase]++;
-                if (!symptomDayCount[name]) symptomDayCount[name] = {};
-                if (!symptomDayCount[name][logCycleDay]) symptomDayCount[name][logCycleDay] = 0;
-                symptomDayCount[name][logCycleDay]++;
+
+                if (weight === 0) return; // Skip logs outside the last 3 cycles for prediction weighting
+                if (!symptomDayWeighted[name]) symptomDayWeighted[name] = {};
+                if (!symptomDayWeighted[name][logCycleDay]) symptomDayWeighted[name][logCycleDay] = 0;
+                symptomDayWeighted[name][logCycleDay] += weight;
             });
         });
 
-        Object.keys(symptomDayCount).forEach(symName => {
-            const dayCounts = symptomDayCount[symName];
+        Object.keys(symptomDayWeighted).forEach(symName => {
+            const dayCounts = symptomDayWeighted[symName];
             const upcomingDays = [
                 ((cycleDay % resolvedAvgLength) + 1),
                 ((cycleDay + 1) % resolvedAvgLength) + 1,
             ];
             upcomingDays.forEach(day => {
-                const count = dayCounts[day] ?? 0;
-                if (count < 2) return;
+                const score = dayCounts[day] ?? 0;
+                if (score < 1.5) return;
                 const info = symptomInfoLookup(symName) || {};
                 if (!info.shoppingList || info.shoppingList.length === 0) return;
                 const alreadyAdded = newInsights.some(i => i.cardType === "prediction" && i.type === `Prediction: ${symName}`);
