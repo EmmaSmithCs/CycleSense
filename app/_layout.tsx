@@ -1,4 +1,5 @@
 // _layout.tsx
+import { DateFormatProvider } from '@/context/DateFormatContext';
 import { GamificationProvider } from '@/context/GamificationContext';
 import { ThemeProvider } from '@/context/ThemeContext';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -118,32 +119,34 @@ export default function RootLayout() {
     // Stack is ALWAYS rendered — expo-router requires this
     return (
         <ThemeProvider>
-            <GamificationProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen name="(auth)" />
-                </Stack>
-                {showBlur && (
-                    <View
-                        style={{
-                            position: 'absolute',
-                            width: '100%',
-                            height: '100%',
-                            backgroundColor: '#000', // 👈 THIS is key
-                            zIndex: 999,
-                        }}
-                    >
-                        <BlurView
-                            intensity={100}
+            <DateFormatProvider>
+                <GamificationProvider>
+                    <Stack screenOptions={{ headerShown: false }}>
+                        <Stack.Screen name="(tabs)" />
+                        <Stack.Screen name="(auth)" />
+                    </Stack>
+                    {showBlur && (
+                        <View
                             style={{
                                 position: 'absolute',
                                 width: '100%',
                                 height: '100%',
+                                backgroundColor: '#000', // 👈 THIS is key
+                                zIndex: 999,
                             }}
-                        />
-                    </View>
-                )}
-            </GamificationProvider>
+                        >
+                            <BlurView
+                                intensity={100}
+                                style={{
+                                    position: 'absolute',
+                                    width: '100%',
+                                    height: '100%',
+                                }}
+                            />
+                        </View>
+                    )}
+                </GamificationProvider>
+            </DateFormatProvider>
         </ThemeProvider>
     );
 }

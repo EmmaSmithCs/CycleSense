@@ -1,6 +1,7 @@
 // app/(tabs)/profile.tsx
 
 import GamificationSection from '@/components/GamificationSection';
+import { useDateFormat } from '@/context/DateFormatContext';
 import { useGamification } from '@/context/GamificationContext';
 import { useTheme } from '@/context/ThemeContext';
 import { logout } from '@/firebase/auth';
@@ -29,6 +30,8 @@ export default function ProfileScreen() {
     const c = theme.colors;
 
     const { refreshGamification } = useGamification();
+
+    const { formatDate } = useDateFormat();
 
     // Profile data
     const [userName, setUserName] = useState('');
@@ -186,7 +189,7 @@ export default function ProfileScreen() {
                         .join (', ') || '-';
                     return `
                         <tr>
-                            <td>${l.date}</td>
+                            <td>${formatDate(new Date(l.date))}</td>
                             <td>${l.bleeding || 'None'}</td>
                             <td>${symptoms}</td>
                             <td>${l.notes}</td>
@@ -194,6 +197,8 @@ export default function ProfileScreen() {
                     `;
                     
                 }).join('');
+
+                
 
                 const html =   `
                     <html><head><style>
@@ -206,8 +211,8 @@ export default function ProfileScreen() {
                         .meta { color: #888; font-size: 13px; margin-bottom: 8px; }
                     </style></head><body>
                         <h1>CycleSense — Cycle Log</h1>
-                        <p class="meta">Generated: ${format(now, 'dd MMMM yyyy')}</p>
-                        <p class="meta">Period: ${format(cutoff, 'dd MMM yyyy')} – ${format(now, 'dd MMM yyyy')}</p>
+                        <p class="meta">Generated: ${formatDate(now, 'long')}</p>
+                        <p class="meta">Period: ${formatDate(cutoff, 'long')} - ${formatDate(now, 'long')}</p>
                         <p class="meta">Email: ${user.email}</p>
                         <table>
                             <thead><tr>

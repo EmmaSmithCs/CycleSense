@@ -1,3 +1,4 @@
+import { useDateFormat } from '@/context/DateFormatContext';
 import { useTheme } from '@/context/ThemeContext';
 import { auth, db } from '@/firebase/config';
 import { useFocusEffect } from '@react-navigation/native';
@@ -100,6 +101,8 @@ const BLEEDING_LABELS: Record<string, string> = {
 export default function HistoryScreen() {
     const { theme } = useTheme();
     const c = theme.colors;
+
+    const { formatDate } = useDateFormat();
 
     const [markedDates, setMarkedDates] = useState<any>({});
     const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -442,7 +445,7 @@ export default function HistoryScreen() {
                   keyboardShouldPersistTaps="handled"
                   showsVerticalScrollIndicator={false}>
                   <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10, color: c.text }}>
-                    Log for {selectedDate || format(new Date(), "yyyy-MM-dd")}
+                    Log for {selectedDate ? formatDate(selectedDate) : 'Unknown Date'}
                   </Text>
 
                   <Text style={{ marginBottom: 5, color: c.textSecondary }}>Bleeding:</Text>

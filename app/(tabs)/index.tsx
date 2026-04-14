@@ -1,4 +1,5 @@
 // (tabs)/index.tsx
+import { useDateFormat } from '@/context/DateFormatContext';
 import { useGamification } from '@/context/GamificationContext';
 import { useTheme } from '@/context/ThemeContext';
 import { auth } from '@/firebase/config';
@@ -15,7 +16,6 @@ import StreakWidget from '../../components/StreakWidget';
 import { db } from '../../firebase/config';
 import { saveDailyLog } from '../../firebase/dailyLogs';
 import { buildCycles, DailyLog, getCycleProgress, predictNextPeriod } from '../utils/cyclePrediction';
-
 
 const intensitySymptoms = ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia", "Bloating", "Gas", "Diarrhoea", "Constipation"];
 
@@ -86,6 +86,8 @@ export default function DailyTrackingScreen() {
     const { theme } = useTheme();
     const c = theme.colors;
     const router = useRouter();
+
+    const { formatDate } = useDateFormat();
 
     const { gamificationEnabled } = useGamification();
     const { refreshGamification } = useGamification();
@@ -334,7 +336,7 @@ export default function DailyTrackingScreen() {
                 keyExtractor={(item) => item.toISOString()}
                 contentContainerStyle={styles.dateStrip}
                 renderItem={({ item }) => {
-                    const isSelected = format(item, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd");
+                    const isSelected = format(item, 'yyyy-MM-dd') === format(selectedDate, 'yyyy-MM-dd');
                     return (
                         <TouchableOpacity
                             onPress={async () => {
@@ -399,7 +401,7 @@ export default function DailyTrackingScreen() {
                         <ScrollView style={styles.modalScrollContent} showsVerticalScrollIndicator={false}>
 
                             <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10, color: c.text }}>
-                                Log for {format(selectedDate, "yyyy-MM-dd")}
+                                Log for {formatDate(selectedDate)}
                             </Text>
 
                             <Text style={{ marginBottom: 5, color: c.textSecondary }}>Bleeding:</Text>

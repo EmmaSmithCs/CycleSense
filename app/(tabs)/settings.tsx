@@ -1,6 +1,7 @@
 //app/(tabs)/settings.tsx
 
 import { ThemeName, themes } from '@/constants/theme';
+import { useDateFormat } from '@/context/DateFormatContext';
 import { useGamification } from '@/context/GamificationContext';
 import { useTheme } from '@/context/ThemeContext';
 import { auth } from '@/firebase/config';
@@ -18,7 +19,8 @@ import { cancelNotification, notifyUpcomingSymptomsForUser, requestNotificationP
 export default function SettingsScreen() {
     const { theme, themeName, setTheme } = useTheme();
     const c = theme.colors;
-    
+    const { dateFormat, setDateFormat } = useDateFormat();
+
     const NOTIF_KEYS = {
         notifications: "notificationsEnabled",
         period: "periodReminderEnabledID",
@@ -61,7 +63,6 @@ export default function SettingsScreen() {
     // Preferences
     const [cycleLength, setCycleLength] = useState(28);
     const [periodLength, setPeriodLength] = useState(5);
-    const [dateFormat, setDateFormat] = useState<'DD/MM/YYYY' | 'MM/DD/YYYY' | 'YYYY/MM/DD'>('DD/MM/YYYY');
     const [gamificationEnabled, setGamificationEnabled] = useState(false);
     const [prefsSaving, setPrefsSaving] = useState(false);
     const [prefsSaved, setPrefsSaved] = useState(false);
