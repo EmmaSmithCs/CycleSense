@@ -431,7 +431,10 @@ export default function InsightsScreen() {
             const logDate = new Date(dateStr);
             for (const cycle of cycles) {
                 const start = new Date(cycle.startDate);
-                const end = new Date(cycle.endDate);
+                const nextCycle = cycles[cycles.indexOf(cycle) + 1];
+                const end = nextCycle
+                    ? addDays(new Date(nextCycle.startDate), -1)
+                    : addDays(start, resolvedAvgLength -1);
                 if (logDate >= start && logDate <= end) {
                     const day = differenceInCalendarDays(logDate, start) + 1;
                     return { day, phase: getPhaseForDay(day, resolvedAvgLength) };
@@ -457,7 +460,10 @@ export default function InsightsScreen() {
 
         last3ForWeighting.forEach((cycle, i) => {
             const start = new Date(cycle.startDate);
-            const end = new Date(cycle.endDate);
+            const nextCycle = last3ForWeighting[i + 1]
+            const end = nextCycle
+                ? addDays(new Date(nextCycle.startDate), -1)
+                : addDays(start, resolvedAvgLength -1);
             let current = new Date(start);
             while (current <= end) {
                 const dateStr = format(current, 'yyyy-MM-dd');
@@ -624,11 +630,15 @@ export default function InsightsScreen() {
                                             </View>
                                             <Text style={[styles.chevron, { color: config.accent }]}>{isExpanded ? "▲" : "▼"}</Text>
                                         </View>
-                                        {!isExpanded && (
+                                        <Animated.View style={{
+                                            opacity: animation.interpolate({ inputRange: [0, 0.3], outputRange: [1, 0], extrapolate: "clamp" }),
+                                            maxHeight: animation.interpolate({ inputRange: [0, 0.3], outputRange: [20, 0], extrapolate: "clamp" }),
+                                            overflow: "hidden",
+                                        }}>
                                             <Text style={[styles.previewText, { color: c.textMuted }]} numberOfLines={1}>
                                                 {preview}{hasMore ? `  +${symptoms.length - 4} more` : ""}
                                             </Text>
-                                        )}
+                                        </Animated.View>
                                         <Animated.View style={{
                                             maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 500] }),
                                             overflow: "hidden",

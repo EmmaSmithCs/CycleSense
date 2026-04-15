@@ -1,4 +1,6 @@
 // _layout.tsx
+
+// Imports
 import { DateFormatProvider } from '@/context/DateFormatContext';
 import { GamificationProvider } from '@/context/GamificationContext';
 import { ThemeProvider } from '@/context/ThemeContext';
@@ -12,7 +14,10 @@ import { useEffect, useRef, useState } from 'react';
 import { AppState, View } from 'react-native';
 import { auth, db } from '../firebase/config';
 
+
+// Root layout component
 export default function RootLayout() {
+    // State variables
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [onboarded, setOnboarded] = useState<boolean | null>(null);
@@ -23,6 +28,7 @@ export default function RootLayout() {
     const router = useRouter();
     const segments = useSegments();
 
+    // Listen for auth state changes
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
             setUser(firebaseUser);
@@ -34,15 +40,17 @@ export default function RootLayout() {
         return unsubscribeAuth;
     }, []);
 
+    // Listen for onboarded status changes
     useEffect(() => {
         if (!user) return;
         const unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (snap) => {
-            setOnboarded(snap.data()?.onboarded ?? false);
+            setOnboarded(snap.data()?.onboarded ?? false); //
             setLoading(false);
         });
         return unsubscribeDoc;
     }, [user]);
 
+    // Routing logic
     useEffect(() => {
         if (loading) return;
         const inAuthGroup = segments[0] === '(auth)';
@@ -63,6 +71,7 @@ export default function RootLayout() {
         triggerAppLock();
     }, [loading]);
 
+    // App lock function
     const triggerAppLock = async () => {
         if (isAuthenticating.current) return;
         const lock = await AsyncStorage.getItem('privacyAppLock');
@@ -86,6 +95,7 @@ export default function RootLayout() {
         }
     };
 
+    // App state change listener for blur and lock
     useEffect(() => {
         const sub = AppState.addEventListener('change', async (nextState) => {
             const prevState = prevAppState.current;

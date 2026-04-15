@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { collection, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Button, FlatList, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Button, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { saveDailyLog } from '../../firebase/dailyLogs';
@@ -332,6 +332,9 @@ export default function HistoryScreen() {
     const stats = getStats();
     const recentLogs = [...allLogs].sort((a, b) => b.id.localeCompare(a.id)).slice(0, 6);
 
+    const scrollRef = React.useRef<ScrollView>(null);
+    const notesInputRef = React.useRef<TextInput>(null);
+
     if (loading) {
         return (
             <View style={[styles.centered, { backgroundColor: c.background }]}>
@@ -438,142 +441,176 @@ export default function HistoryScreen() {
         
 
         <Modal visible={modalVisible} animationType="slide" transparent statusBarTranslucent onRequestClose={closeModal}>
-          <SafeAreaView style={styles.modalBackground}>
-             <View style={[styles.modalCard, { backgroundColor: c.card }]}>
-                <ScrollView 
-                  contentContainerStyle={styles.modalScrollContent}
-                  keyboardShouldPersistTaps="handled"
-                  showsVerticalScrollIndicator={false}>
-                  <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10, color: c.text }}>
-                    Log for {selectedDate ? formatDate(selectedDate) : 'Unknown Date'}
-                  </Text>
+            <KeyboardAvoidingView
+                behavior={Platform.OS === "ios" ? "padding" : "height"}
+                style={{ flex: 1 }}
+            >
+                <SafeAreaView style={styles.modalBackground}>
+                    <View style={[styles.modalCard, { backgroundColor: c.card }]}>
+                        <ScrollView 
+                            ref={scrollRef}
+                            contentContainerStyle={[styles.modalScrollContent, {paddingBottom: 120}]}
+                            keyboardShouldPersistTaps="handled"
+                            showsVerticalScrollIndicator={false}>
+                            <Text style={{ fontWeight: "bold", fontSize: 18, marginBottom: 10, color: c.text }}>
+                                Log for {selectedDate ? formatDate(selectedDate) : 'Unknown Date'}
+                            </Text>
 
-                  <Text style={{ marginBottom: 5, color: c.textSecondary }}>Bleeding:</Text>
-                  {["None", "Light", "Medium", "Heavy"].map((level) => (
-                    <TouchableOpacity
-                      key={level}
-                      onPress={() => setBleeding(level as any)}
-                      style={[styles.optionButton, { backgroundColor: bleeding === level ? c.primary : c.surface }]}
-                    >
-                      <Text style={{ color: bleeding === level ? "#fff" : c.text }}>
-                        {level}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-
-                  {symptomCategories.map((category) => (
-                    <View key={category.key} style={{ marginTop: 15 }}>
-                      <Text style={{ fontWeight: "bold", marginBottom: 5, color: c.text }}>{category.title}</Text>
-
-                      <FlatList
-                        horizontal
-                        data={category.options}
-                        keyExtractor={(item) => item}
-                        showsHorizontalScrollIndicator={false}
-                        nestedScrollEnabled
-                        renderItem={({ item }) => {
-                          const hasIntensity = intensitySymptoms.includes(item);
-                          const isSelected = hasIntensity
-                            ? !!symptomsWithIntensity.find(s => s.name === item)
-                            : symptoms.includes(item);
-                          return (
-                            <TouchableOpacity
-                              onPress={() => {
-                                if (intensitySymptoms.includes(item)) {
-                                  setTimeout(() => openIntensityModal(item), 0);
-                                } else {
-                                  toggleSymptom(item);
-                                }
-}}
-                              style={[
-                                styles.optionButton,
-                                { backgroundColor: isSelected ? c.primary : c.surface, marginRight: 8 },
-                              ]}
-                            >
-                              <Text
-                                style={{ color: isSelected ? "#fff" : c.text, fontSize: 12 }}
-                              >
-                                {item}
-                              </Text>
-                            </TouchableOpacity>
-                          );
-                        }}
-                      />
-                    </View>
-                  ))}
-
-                  <Text style={{ marginTop: 10, marginBottom: 5, color: c.textSecondary }}>Notes:</Text>
-                  <TextInput
-                    value={notes}
-                    onChangeText={setNotes}
-                    placeholder="Anything you noticed today?"
-                    multiline
-                    style={{
-                      borderWidth: 1,
-                      borderColor: c.border,
-                      borderRadius: 8,
-                      padding: 10,
-                      minHeight: 80,
-                      textAlignVertical: "top",
-                      color: c.text,
-                      backgroundColor: c.surface,
-                    }}
-                  />
-                    
-                  <Button title="Save Log" onPress={handleLog} color={c.primary}/>
-                  <Button title="Delete Log" onPress={handleDeleteLog} color={c.error} />
-                  <Button title="Cancel" onPress={closeModal} color={c.textMuted} />
-
-                  {selectedSymptom && (
-                    <Modal 
-                      key ={selectedSymptom}
-                      visible={true} 
-                      animationType="fade" 
-                      transparent
-                      statusBarTranslucent
-                      onRequestClose={() => setSelectedSymptom(null)}
-                      >
-                      <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000000aa" }}>
-                        <View style={{ backgroundColor: c.card, padding: 20, borderRadius: 12, width: 250 }}>
-                          <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10, color: c.text  }}>{selectedSymptom} Intensity</Text>
-                          <Text style={{ fontSize: 14, marginBottom: 10, color: c.textSecondary }}>Current Intensity: {selectedIntensity}</Text>
-
-                          <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
-                            {[1, 2, 3, 4, 5].map((level) => (
-                              <TouchableOpacity
+                            <Text style={{ marginBottom: 5, color: c.textSecondary }}>Bleeding:</Text>
+                            {["None", "Light", "Medium", "Heavy"].map((level) => (
+                                <TouchableOpacity
                                 key={level}
-                                onPress={() => setSelectedIntensity(level)}
-                                style={{
-                                  width: 40, height: 40, borderRadius: 20,
-                                  backgroundColor: selectedIntensity === level ? c.primary : c.surface,
-                                  justifyContent: "center", alignItems: "center",
-                                }}
-                              >
-                                <Text style={{ color: selectedIntensity === level ? "#fff" : c.text }}> {level}</Text>
-                              </TouchableOpacity>
+                                onPress={() => setBleeding(level as any)}
+                                style={[styles.optionButton, { backgroundColor: bleeding === level ? c.primary : c.surface }]}
+                                >
+                                <Text style={{ color: bleeding === level ? "#fff" : c.text }}>
+                                    {level}
+                                </Text>
+                                </TouchableOpacity>
                             ))}
-                          </View>
 
-                          <Button
-                            title="Save"
-                            color={c.primary}
-                            onPress={() => {
-                              setSymptomsWithIntensity(prev => {
-                                const filtered = prev.filter(s => s.name !== selectedSymptom);
-                                return [...filtered, { name: selectedSymptom!, intensity: selectedIntensity }];
-                              });
-                              setSelectedSymptom(null);
+                        {symptomCategories.map((category) => (
+                            <View key={category.key} style={{ marginTop: 15 }}>
+                            <Text style={{ fontWeight: "bold", marginBottom: 5, color: c.text }}>{category.title}</Text>
+
+                            <FlatList
+                                horizontal
+                                data={category.options}
+                                keyExtractor={(item) => item}
+                                showsHorizontalScrollIndicator={false}
+                                nestedScrollEnabled
+                                renderItem={({ item }) => {
+                                const hasIntensity = intensitySymptoms.includes(item);
+                                const isSelected = hasIntensity
+                                    ? !!symptomsWithIntensity.find(s => s.name === item)
+                                    : symptoms.includes(item);
+                                const intensityEntry = symptomsWithIntensity.find(s => s.name === item);
+                                return (
+                                    <TouchableOpacity
+                                        onPress={() => {
+                                            if (intensitySymptoms.includes(item)) {
+                                                const existing = symptomsWithIntensity.find(s => s.name === item);
+                                                if (existing) {
+                                                    setSymptomsWithIntensity(prev => prev.filter(s => s.name !== item));
+                                                } else {
+                                                    setTimeout(() => openIntensityModal(item), 0);
+                                                }
+                                            } else {
+                                                toggleSymptom(item);
+                                            }
+                                        }}
+                                        style={[
+                                            styles.optionButton,
+                                            { backgroundColor: isSelected ? c.primary : c.surface, marginRight: 8, flexDirection: "row", alignItems: "center" },
+                                        ]}
+                                    >
+                                        <Text style={{ color: isSelected ? "#fff" : c.text, fontSize: 12 }}>
+                                            {item}
+                                        </Text>
+                                        {intensityEntry?.intensity !== undefined && (
+                                            <View style={{
+                                                marginLeft: 5,
+                                                backgroundColor: "##ffffff40",
+                                                borderWidth: 1,
+                                                borderColor: "#ffffff80",
+                                                width: 18,
+                                                height: 18,
+                                                borderRadius: 9,
+                                                alignItems: "center",
+                                                justifyContent: "center"
+                                        }}>
+                                                <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700", lineHeight: 12}}>
+                                                    {intensityEntry.intensity}
+                                                </Text>
+                                            </View>
+                                        )}
+                                    </TouchableOpacity>
+                                );
+                                }}
+                            />
+                            </View>
+                        ))}
+
+                        <Text style={{ marginTop: 10, marginBottom: 5, color: c.textSecondary }}>Notes:</Text>
+                        <TextInput
+                            ref={notesInputRef}
+                            value={notes}
+                            onChangeText={setNotes}
+                            onFocus={() => {
+                                setTimeout(() => {
+                                    scrollRef.current?.scrollToEnd({ animated: true });
+                                }, 200);
+            
                             }}
-                          />
-                          <Button title="Cancel" onPress={() => setSelectedSymptom(null)} color={c.textMuted} />
+                            placeholder="Anything you noticed today?"
+                            multiline
+                            style={{
+                                borderWidth: 1,
+                                borderColor: c.border,
+                                borderRadius: 8,
+                                padding: 10,
+                                minHeight: 80,
+                                textAlignVertical: "top",
+                                color: c.text,
+                                backgroundColor: c.surface,
+                            }}
+                        />
+                                
+                        <Button title="Save Log" onPress={handleLog} color={c.primary}/>
+                        <Button title="Delete Log" onPress={handleDeleteLog} color={c.error} />
+                        <Button title="Cancel" onPress={closeModal} color={c.textMuted} />
 
-                        </View>
-                      </View>
-                    </Modal>
-                  )}
-                </ScrollView>
-              </View>
-          </SafeAreaView>
+                        {selectedSymptom && (
+                            <Modal 
+                            key ={selectedSymptom}
+                            visible={true} 
+                            animationType="fade" 
+                            transparent
+                            statusBarTranslucent
+                            onRequestClose={() => setSelectedSymptom(null)}
+                            >
+                            <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000000aa" }}>
+                                <View style={{ backgroundColor: c.card, padding: 20, borderRadius: 12, width: 250 }}>
+                                <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10, color: c.text  }}>{selectedSymptom} Intensity</Text>
+                                <Text style={{ fontSize: 14, marginBottom: 10, color: c.textSecondary }}>Current Intensity: {selectedIntensity}</Text>
+
+                                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
+                                    {[1, 2, 3, 4, 5].map((level) => (
+                                    <TouchableOpacity
+                                        key={level}
+                                        onPress={() => setSelectedIntensity(level)}
+                                        style={{
+                                        width: 40, height: 40, borderRadius: 20,
+                                        backgroundColor: selectedIntensity === level ? c.primary : c.surface,
+                                        justifyContent: "center", alignItems: "center",
+                                        }}
+                                    >
+                                        <Text style={{ color: selectedIntensity === level ? "#fff" : c.text }}> {level}</Text>
+                                    </TouchableOpacity>
+                                    ))}
+                                </View>
+
+                                <Button
+                                    title="Save"
+                                    color={c.primary}
+                                    onPress={() => {
+                                    setSymptomsWithIntensity(prev => {
+                                        const filtered = prev.filter(s => s.name !== selectedSymptom);
+                                        return [...filtered, { name: selectedSymptom!, intensity: selectedIntensity }];
+                                    });
+                                    setSelectedSymptom(null);
+                                    }}
+                                />
+                                <Button title="Cancel" onPress={() => setSelectedSymptom(null)} color={c.textMuted} />
+
+                                </View>
+                            </View>
+                            </Modal>
+                        )}
+                        </ScrollView>
+                    </View>
+                </SafeAreaView>
+            </KeyboardAvoidingView>
         </Modal>
 
 
