@@ -1,4 +1,20 @@
-// _layout.tsx
+// app/_layout.tsx
+
+/*
+    This file defines the root layout for the CycleSense app.
+    It sets up the main providers for theme, date formatting, and gamification context,
+    and handles global authentication state and routing logic.
+
+    Key features:
+    - Listens for Firebase authentication state changes to determine if a user is logged in.
+    - Fetches the user's onboarding status from Firestore to determine if they need to complete onboarding.
+    - Implements routing logic to direct users to the appropriate screens based on their auth and onboarding status.
+    - Implements an app lock feature that uses Expo's Local Authentication to secure the app when it goes to the background.
+    - Uses a BlurView to obscure the app's content when it's in the background, based on user settings.
+    - Wraps the app in ThemeProvider, DateFormatProvider, and GamificationProvider to provide global context for these features.
+    - Ensures that the app lock and blur features are only triggered when appropriate, and prevents multiple simultaneous authentication prompts.
+
+*/
 
 // Imports
 import { DateFormatProvider } from '@/context/DateFormatContext';
@@ -44,7 +60,7 @@ export default function RootLayout() {
     useEffect(() => {
         if (!user) return;
         const unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (snap) => {
-            setOnboarded(snap.data()?.onboarded ?? false); //
+            setOnboarded(snap.data()?.onboarded ?? false); 
             setLoading(false);
         });
         return unsubscribeDoc;
@@ -55,11 +71,11 @@ export default function RootLayout() {
         if (loading) return;
         const inAuthGroup = segments[0] === '(auth)';
         if (!user && !inAuthGroup) {
-            router.replace('/(auth)/login');
+            router.replace('/(auth)/login'); // Only go to login if not already in auth group
         } else if (user && !onboarded && segments[1] !== 'onboarding') {
-            router.replace('/(auth)/onboarding');
+            router.replace('/(auth)/onboarding'); // Only go to onboarding if not already there
         } else if (user && onboarded && inAuthGroup) {
-            router.replace('/(tabs)');
+            router.replace('/(tabs)'); // Only go to main app if not already there
         }
     }, [user, loading, onboarded, segments]);
 
@@ -73,6 +89,7 @@ export default function RootLayout() {
 
     // App lock function
     const triggerAppLock = async () => {
+        // Prevent multiple simultaneous auth prompts
         if (isAuthenticating.current) return;
         const lock = await AsyncStorage.getItem('privacyAppLock');
         if (lock && JSON.parse(lock) === true) {
@@ -83,50 +100,54 @@ export default function RootLayout() {
                     fallbackLabel: 'Enter passcode',
                 });
                 if (authResult.success) {
-                    setShowBlur(false);
+                    setShowBlur(false); // Unlock successful
                 } else {
-                    router.replace('/(auth)/login');
+                    router.replace('/(auth)/login'); // Force logout on failure or cancellation
                 }
             } finally {
-                isAuthenticating.current = false;
+                isAuthenticating.current = false; // Reset flag regardless of outcome
             }
         } else {
-            setShowBlur(false);
+            // If lock not enabled, ensure blur is off
+            setShowBlur(false); 
         }
     };
 
     // App state change listener for blur and lock
     useEffect(() => {
         const sub = AppState.addEventListener('change', async (nextState) => {
+            // Store previous state to determine if we're coming back from background
             const prevState = prevAppState.current;
             prevAppState.current = nextState;
 
+            // Check user settings for blur and lock
             const hideRaw = await AsyncStorage.getItem('privacyHideInSwitcher');
             const hideEnabled = hideRaw && JSON.parse(hideRaw) === true;
 
             const lockRaw = await AsyncStorage.getItem('privacyAppLock');
             const lockEnabled = lockRaw && JSON.parse(lockRaw) === true;
 
-            // 🟡 ALWAYS show blur when leaving active
+            // ALWAYS show blur when leaving active
             if (nextState !== 'active') {
                 if (hideEnabled) setShowBlur(true);
             }
 
-            // 🟢 CRITICAL FIX: ALWAYS clear blur on active
+            // ALWAYS clear blur on active
             if (nextState === 'active') {
                 setShowBlur(false);
 
-                // 🔒 ONLY trigger lock when coming back from background
+                // ONLY trigger lock when coming back from background
                 if (prevState === 'background' && lockEnabled) {
                     await triggerAppLock();
                 }
             }
         });
 
+        // Cleanup listener on unmount
         return () => sub.remove();
     }, []);
 
-    // Stack is ALWAYS rendered — expo-router requires this
+    // Render stack navigator with providers
     return (
         <ThemeProvider>
             <DateFormatProvider>
@@ -141,7 +162,7 @@ export default function RootLayout() {
                                 position: 'absolute',
                                 width: '100%',
                                 height: '100%',
-                                backgroundColor: '#000', // 👈 THIS is key
+                                backgroundColor: '#000',
                                 zIndex: 999,
                             }}
                         >

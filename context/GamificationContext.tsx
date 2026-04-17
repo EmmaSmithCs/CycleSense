@@ -1,26 +1,41 @@
-// context/GamificationContext.tsx
+// app/context/GamificationContext.tsx
 
+/*
+    This file defines the GamificationContext.
+    It provides a way to manage and access gamification-related data such as logging streaks, total logs, and earned badges across the app.
+
+    Key features:
+    - Uses React Context to provide gamification data and functions to all components in the app.
+    - Fetches gamification data from Firestore based on the current user's logs and preferences.
+    - Calculates the current logging streak and total logs to determine which badges the user has earned.
+
+*/
+
+// Imports
 import { auth, db } from '@/firebase/config';
 import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { createContext, useCallback, useContext, useEffect, useState } from 'react';
 
+// Define the type for badges in the gamification system
 export type Badge = {
-    id: string;
-    emoji: string;
-    label: string;
-    description: string;
-    earned: boolean;
+    id: string; // Unique identifier for the badge
+    emoji: string; // Emoji representing the badge
+    label: string; // Short label for the badge
+    description: string; // Description of how to earn the badge
+    earned: boolean; // Whether the user has earned this badge
 };
 
+// Define the context type for gamification features
 type GamificationContextType = {
-    gamificationEnabled: boolean;
-    setGamificationEnabled: (value: boolean) => void;
-    streak: number;
-    totalLogs: number;
-    badges: Badge[];
-    refreshGamification: () => Promise<void>;
+    gamificationEnabled: boolean; // Whether the gamification feature is enabled
+    setGamificationEnabled: (value: boolean) => void; // Function to update the gamification enabled setting
+    streak: number; // Current logging streak
+    totalLogs: number; // Total number of logged days
+    badges: Badge[]; // List of available badges
+    refreshGamification: () => Promise<void>; // Function to refresh the gamification data
 };
 
+// Create the context with default values
 const GamificationContext = createContext<GamificationContextType>({
     gamificationEnabled: false,
     setGamificationEnabled: () => {},
@@ -30,14 +45,16 @@ const GamificationContext = createContext<GamificationContextType>({
     refreshGamification: async () => {},
 });
 
+// Provider component to wrap the app and provide gamification context
 export function GamificationProvider({ children }: { children: React.ReactNode }) {
+
+    // State variables for gamification data
     const [gamificationEnabled, setGamificationEnabled] = useState(false);
     const [streak, setStreak] = useState(0);
     const [totalLogs, setTotalLogs] = useState(0);
     const [badges, setBadges] = useState<Badge[]>([]);
 
-    // CHANGED: Single function that fetches both the enabled flag AND log data.
-    // Called on mount and whenever a screen triggers a refresh (e.g. on focus).
+    // Function to refresh gamification data by fetching from Firestore and calculating streaks and badges
     const refreshGamification = useCallback(async () => {
         const user = auth.currentUser;
         if (!user) return;
@@ -47,7 +64,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         const enabled = snap.exists() ? (snap.data().gamificationEnabled ?? false) : false;
         setGamificationEnabled(enabled);
 
-        // No point fetching logs if the feature is off
+        // If gamification is not enabled, skip fetching logs and calculating badges
         if (!enabled) return;
 
         // Fetch all daily logs
@@ -73,6 +90,8 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
 
         // Evaluate badges against latest data
         setBadges([
+
+            // First log badge is earned if total logs is at least 1
             {
                 id: 'first_log',
                 emoji: '🌱',
@@ -80,6 +99,8 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                 description: 'Logged your first day',
                 earned: total >= 1,
             },
+
+            // Consistent badge is earned if current streak is at least 3
             {
                 id: 'consistent',
                 emoji: '💪',
@@ -87,6 +108,8 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                 description: 'Logged 3 days in a row',
                 earned: count >= 3,
             },
+
+            // Week streak badge is earned if current streak is at least 7
             {
                 id: 'week_streak',
                 emoji: '🔥',
@@ -94,6 +117,8 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                 description: 'Logged 7 days in a row',
                 earned: count >= 7,
             },
+
+            // Dedicated badge is earned if current streak is at least 14
             {
                 id: 'dedicated',
                 emoji: '🏆',
@@ -101,6 +126,8 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                 description: 'Logged 14 days in a row',
                 earned: count >= 14,
             },
+
+            // Month logger badge is earned if total logs is at least 30
             {
                 id: 'month_logger',
                 emoji: '📅',
@@ -108,6 +135,8 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                 description: 'Logged 30 or more days total',
                 earned: total >= 30,
             },
+
+            // Century badge is earned if total logs is at least 100
             {
                 id: 'century',
                 emoji: '💯',
@@ -118,11 +147,12 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         ]);
     }, []);
 
-    // Fetch once on mount
+    // Fetch once on mount to initialize gamification data
     useEffect(() => {
         refreshGamification();
     }, [refreshGamification]);
 
+    // Return the context provider with the current gamification data and functions
     return (
         <GamificationContext.Provider
             value={{
@@ -139,6 +169,7 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
     );
 }
 
+// Custom hook to use the GamificationContext in components
 export function useGamification() {
     return useContext(GamificationContext);
 }

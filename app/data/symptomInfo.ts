@@ -1,5 +1,25 @@
-// TEMPORARY FILE FOR SYMPTOM INFO - TO BE REPLACED WITH FIREBASE DATA STRUCTURE
+// app/data/symptomInfo.ts
 
+/*
+    This file contains a comprehensive data structure that provides detailed information about various symptoms that individuals may experience during different phases of the menstrual cycle. 
+    Each symptom entry includes a description, the typical cycle phase during which it occurs, tips for managing the symptom, shopping list recommendations for products that may help alleviate the symptom, and explanations for why the symptom may occur during each phase of the menstrual cycle.
+    The data is organized in a way that allows for easy retrieval and display of symptom information within the CycleSense app, providing users with valuable insights and practical advice for managing their symptoms throughout their menstrual cycle.
+
+    Each Field:
+    - description: A brief explanation of the symptom and what it entails.
+    - typicalCyclePhase: The phase of the menstrual cycle during which the symptom is most commonly experienced.
+    - tips: Practical advice and strategies for managing the symptom effectively.
+    - shoppingList: Recommendations for products that may help alleviate the symptom, if applicable.
+    - phaseReasons: An explanation of why the symptom may occur during each phase of the menstrual cycle, providing users with a better understanding of the hormonal and physiological changes that contribute to their symptoms.
+
+    Key features:
+    - Provides a comprehensive overview of common symptoms experienced during the menstrual cycle, along with practical tips and product recommendations for managing those symptoms.
+    - Offers explanations for why symptoms may occur during different phases of the menstrual cycle, helping users understand the underlying causes of their symptoms and how they relate to hormonal changes.
+    - Organized in a way that allows for easy retrieval and display of symptom information within the CycleSense app, enhancing the user experience and providing valuable insights for users to manage their menstrual health effectively.
+    
+*/
+
+// Exports for symptom information, including descriptions, typical cycle phases, tips for managing symptoms, shopping list recommendations, and explanations for why symptoms may occur during different menstrual cycle phases. 
 export const symptomInfo:Record<string, any> = {
     "Happy": {
         description: "Feeling good, positive mood, and overall well-being.",
