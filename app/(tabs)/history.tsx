@@ -12,7 +12,6 @@
     - Fetches log data from Firestore and updates the calendar markings and recent logs list accordingly.
     - Implements a modal that allows users to view and edit the details of their daily log, including bleeding level, symptoms (with optional intensity), and notes.
     - Calculates and displays statistics about the user's cycle based on their logged data, providing insights into their cycle patterns.
-    
 */
 
 // Imports
@@ -501,7 +500,7 @@ export default function HistoryScreen() {
                                 {/* Left section of the recent log card, which displays a bleeding icon with a background color corresponding to the bleeding level of the log */ }
                                 <View style={[styles.recentLeft, { backgroundColor: BLEEDING_COLORS[log.bleeding] + '33' }]}>
                                     <Text style={[styles.recentBleedingIcon, { color: c.primary}]}>
-                                        {BLEEDING_LABELS[log.bleeding]}
+                                        { log.bleeding === "None" ? "o" : "🩸" }
                                     </Text>
                                 </View> 
 

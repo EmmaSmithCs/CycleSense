@@ -75,8 +75,16 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
         setTotalLogs(total);
 
         // Calculate current streak by walking back from today
-        let count = 0;
+        const todayStr = new Date().toISOString().split('T')[0];
+        const hasLoggedToday = logDates.has(todayStr);
+
+        // Start from today if logged, otherwise start from yesterday
         const cursor = new Date();
+        if (!hasLoggedToday) {
+            cursor.setDate(cursor.getDate() - 1);
+        }
+
+        let count = 0;
         while (true) {
             const dateStr = cursor.toISOString().split('T')[0];
             if (logDates.has(dateStr)) {
@@ -86,6 +94,15 @@ export function GamificationProvider({ children }: { children: React.ReactNode }
                 break;
             }
         }
+
+        setStreak(count);
+
+        console.log("🔥 refreshGamification RUNNING");
+        console.log("📅 total logs:", total);
+        console.log("📆 logDates:", [...logDates]);
+        console.log("🔥 streak count:", count);
+        console.log("📌 today:", new Date().toISOString().split("T")[0]);
+
         setStreak(count);
 
         // Evaluate badges against latest data

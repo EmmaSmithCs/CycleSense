@@ -172,6 +172,7 @@ export default function DailyTrackingScreen() {
     const [selectedIntensity, setSelectedIntensity] = useState<number>(3);
     const [cycleDataLoadedOnce, setCycleDataLoadedOnce] = useState(false);
     const [userReady, setUserReady] = useState(false);
+    const [hasLoggedToday, setHasLoggedToday] = useState(false);
 
     // Function to get a greeting message based on the current time of day
     const getGreeting = () => {
@@ -212,6 +213,13 @@ export default function DailyTrackingScreen() {
 
         return unsubscribe;
     }, []);
+
+    // Makes sure the streak is visible on first load
+    useEffect(() => {
+        if (userReady) {
+            refreshGamification();
+        }
+    }, [userReady]);
 
     // Effect to listen for authentication state changes and set userReady state for triggering data fetch
     useEffect(() => {
@@ -298,11 +306,20 @@ export default function DailyTrackingScreen() {
             }
         }
 
-        // Update state variables with calculated cycle data to update the UI
-        setPeriodLength(actualPeriodLength);
+        const savedPeriodLength: number = userSnapshot.exists()
+            ? (userSnapshot.data().periodLength ?? 5)
+            : 5;
+        
+        const predictedPeriodLength = savedPeriodLength;
+        setPeriodLength(actualPeriodLength > 0 ? Math.max(actualPeriodLength, savedPeriodLength) : savedPeriodLength);
+
+    
+        
 
         const todayStr = format(new Date(), "yyyy-MM-dd");
         const todayLog = logs.find(l => l.date === todayStr);
+        const hasLoggedToday = logs.some(l => l.date === todayStr);
+        setHasLoggedToday(hasLoggedToday);
         setIsBleedingToday(!!todayLog && todayLog.bleeding !== "None");
 
         const computedAvg = progress?.avgLength ?? null;
@@ -348,6 +365,7 @@ export default function DailyTrackingScreen() {
         await saveDailyLog(auth.currentUser.uid, selectedDate, logData);
         setModalVisible(false);
         fetchCycleData();
+        await refreshGamification();
     };
 
     // Function to load the daily log for a specific date when the user selects a date from the date strip or opens the log modal
@@ -490,7 +508,7 @@ export default function DailyTrackingScreen() {
         
             {/* Streak widget that shows the user's current streak of consecutive days logged, only visible if gamification is enabled in settings */ }
             <View style={{ paddingHorizontal: 20 }}>
-                <StreakWidget />
+                <StreakWidget hasLoggedToday={hasLoggedToday}/>
             </View>
 
             {/* Cycle progress ring that visually represents the user's current cycle day and average cycle length, showing a message when between cycles, and adjusting layout based on whether gamification is enabled */ }

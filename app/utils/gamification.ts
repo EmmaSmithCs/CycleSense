@@ -15,7 +15,7 @@
     - Determines the user's current level and the XP thresholds for the current and next levels based on their total XP.
     - Defines a set of badges with specific criteria for earning them, and calculates which badges the user has earned based on their logging activity.
     - The main function `computeGamificationStats` takes the user's daily logs as input and returns an object containing all the relevant gamification stats to be displayed in the app.
-    
+
 */
 
 // Imports
@@ -108,44 +108,76 @@ export function getLevelInfo(xp: number): {level: number, title: string, xpForCu
 }
 
 // Function to calculate the user's current streak of consecutive logging days and their longest streak (used for badge calculations)
-export function calculateStreaks(logs: DailyLog[]): { currentStreak: number; longestStreak: number } {
-    
-    // If there are no logs, both current and longest streaks are 0
-    if (!logs.length) return { currentStreak: 0, longestStreak: 0 };
-    
-    // Create a set of log dates for quick lookup
+export function calculateStreaks(logs: DailyLog[]) {
+    if (!logs.length) {
+        return {
+            currentStreak: 0,
+            longestStreak: 0,
+            hasLoggedToday: false,
+        };
+    }
+
+    console.log("🔥 calculateStreaks RUNNING");
+
     const logDates = new Set(logs.map(l => l.date));
-    const today = format(new Date(), "yyyy-MM-dd");
-    const yesterday = format(subDays(new Date(), 1), "yyyy-MM-dd");
 
-    // Calculate current streak by checking if today is logged, if not check yesterday, and then continue checking backwards until we find a day that is not logged
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    const hasLoggedToday = logDates.has(todayStr);
+
+    // sort descending to find MOST recent log
+    const sortedDates = [...logDates]
+        .map(d => new Date(d))
+        .sort((a, b) => b.getTime() - a.getTime());
+
+    const lastLogDate = sortedDates[0];
+    let d = lastLogDate;
+
     let currentStreak = 0;
-    let checkDate = logDates.has(today) ? new Date() : logDates.has(yesterday) ? subDays(new Date(), 1) : null;
 
-    if (checkDate) {
-        let d = checkDate;
+    // only count if last log is within 1 day of today OR today itself
+    const today = new Date();
+    today.setHours(0,0,0,0);
+
+    const last = new Date(lastLogDate);
+    last.setHours(0,0,0,0);
+
+    const daysSinceLastLog = differenceInCalendarDays(today, last);
+
+    if (daysSinceLastLog <= 1) {
         while (logDates.has(format(d, "yyyy-MM-dd"))) {
             currentStreak++;
             d = subDays(d, 1);
         }
+    } else {
+        currentStreak = 0; // broken streak
     }
 
-    // Calculate longest streak
-    const sorted = [...logDates].sort();
+    // longest streak unchanged
     let longest = 0;
     let run = 1;
-    for (let i = 1; i < sorted.length; i++) {
-        const diff = differenceInCalendarDays(new Date(sorted[i]), new Date(sorted[i - 1]));
+    const sortedAsc = [...logDates].sort();
+
+    for (let i = 1; i < sortedAsc.length; i++) {
+        const diff = differenceInCalendarDays(
+            new Date(sortedAsc[i]),
+            new Date(sortedAsc[i - 1])
+        );
+
         if (diff === 1) {
             run++;
-            longest = Math.max(longest, run);
         } else {
+            longest = Math.max(longest, run);
             run = 1;
         }
     }
+
     longest = Math.max(longest, run, currentStreak);
 
-    return { currentStreak, longestStreak: longest };
+    return {
+        currentStreak,
+        longestStreak: longest,
+        hasLoggedToday,
+    };
 }
 
 // Function to calculate the total XP earned by the user based on their logs and current streak (REMOVED FEATURE)
@@ -289,7 +321,9 @@ export function computeGamificationStats(logs: DailyLog[]): GamificationStats {
     const xp = calculateXP(logs, currentStreak);
     const { level, title, xpForCurrentLevel, xpForNextLevel } = getLevelInfo(xp);
     const badges = calculateBadges(logs, currentStreak, longestStreak);
-    
+
+    console.log("🚀 computeGamificationStats CALLED", logs.length);
+
     return {
         currentStreak,
         longestStreak,

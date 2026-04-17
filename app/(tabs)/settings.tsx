@@ -591,31 +591,33 @@ export default function SettingsScreen() {
 
                     {/* Time picker component for selecting the time of the daily tracking reminder  */ }
                     { showDailyTimePicker &&  (
-                        <DateTimePicker
-                            value={new Date(0, 0, 0, dailyHour, dailyMinute)}
-                            mode="time"
-                            is24Hour={true}
-                            display="spinner"
-                            onChange={(event, selectedDate) => {
-                                setShowDailyTimePicker(false);
-                                if (event.type === 'set' && selectedDate) {
-                                    const newHour = selectedDate.getHours();
-                                    const newMinute = selectedDate.getMinutes();
-                                    // Update state with new time and reschedule the daily tracking reminder with the new time
-                                    setDailyHour(newHour);
-                                    setDailyMinute(newMinute);
-
-                                    (async () => {
-                                        // Save the new time in AsyncStorage for persistence, and reschedule the daily tracking reminder with the updated time.
-                                        await AsyncStorage.setItem('dailyMinute', newMinute.toString());
-
-                                        // Update the reminder time, by disabling the existing reminder and then re-enabling it with the new time. This ensures that the scheduled notification is updated correctly.
-                                        handleToggleDailyTracking(false, newHour, newMinute);
-                                        setTimeout(() => handleToggleDailyTracking(true, newHour, newMinute), 100);
-                                    })();
-                                }
-                            }}
-                        />
+                        <View>
+                            <DateTimePicker
+                                value={new Date(0, 0, 0, dailyHour, dailyMinute)}
+                                mode="time"
+                                is24Hour={true}
+                                display="spinner"
+                                onChange={(event, selectedDate) => {
+                                    if (selectedDate) {
+                                        setDailyHour(selectedDate.getHours());
+                                        setDailyMinute(selectedDate.getMinutes());
+                                    }
+                                }}
+                            />
+                        
+                            {/* Confirmation button for setting a time */}
+                            <TouchableOpacity
+                                style={[styles.saveBtn, { backgroundColor: c.primary, marginTop: 0 }]}
+                                onPress={async () => {
+                                    setShowDailyTimePicker(false);
+                                    await AsyncStorage.setItem('dailyMinute', dailyMinute.toString());
+                                    handleToggleDailyTracking(false, dailyHour, dailyMinute);
+                                    setTimeout(() => handleToggleDailyTracking(true, dailyHour, dailyMinute), 100);
+                                }}
+                            >
+                                <Text style={styles.saveBtnText}>Confirm Time</Text>
+                            </TouchableOpacity>
+                        </View>
                     )}
 
                     {/* Individual notification toggle for insights and tips notifications */ }
@@ -989,6 +991,7 @@ const styles = StyleSheet.create({
         padding: 14,
         alignItems: 'center',
         marginTop: 16,
+        justifyContent: 'center',
     },
 
     // Style for the text inside the save preferences button, which changes based on the saving state (default, saving, saved) to provide feedback to the user about the save action

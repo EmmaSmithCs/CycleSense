@@ -586,25 +586,39 @@ export default function InsightsScreen() {
             });
         });
 
-        // Identify symptoms that have a high weighted count on specific upcoming cycle days (e.g. the next 2 cycle days) and create prediction insight cards for those symptoms, including details such as descriptions, tips, typical cycle phase, shopping list items from the symptomInfo data, and a heatmap showing the frequency of that symptom on different cycle days across the user's logs
+        // Identify symptoms that have a high weighted count on specific upcoming cycle days and create prediction insight cards for those symptoms, including details such as descriptions, tips, typical cycle phase, shopping list items from the symptomInfo data, and a heatmap showing the frequency of that symptom on different cycle days across the user's logs
         Object.keys(symptomDayWeighted).forEach(symName => {
             const dayCounts = symptomDayWeighted[symName];
-            const upcomingDays = [
-                ((cycleDay % resolvedAvgLength) + 1), // Next cycle day
-                ((cycleDay + 1) % resolvedAvgLength) + 1, // Day after next cycle day
-            ];
+            const upcomingDays = Array.from({ length: 3 }, (_, i) =>
+                ((cycleDay + i) % resolvedAvgLength) + 1
+            );
 
             // For each of the upcoming cycle days, check if the weighted count for this symptom on that day is above a certain threshold and, if so, create a prediction insight card for that symptom with details from the symptomInfo data and a heatmap of symptom frequency by cycle day    
             upcomingDays.forEach(day => {
                 const score = dayCounts[day] ?? 0;
-                if (score < 1.5) return; // Threshold for showing predictions 
-                const info = symptomInfoLookup(symName) || {};
-                if (!info.shoppingList || info.shoppingList.length === 0) return; // Only show predictions for symptoms that have shopping list items in the symptomInfo data, as this provides actionable insights for the user
                 
-                // Check if a prediction insight for this symptom and cycle day has already been added to avoid duplicates, and if not, create a new prediction insight card that includes a message about the likelihood of experiencing this symptom on the upcoming cycle day, along with details such as a description, tips, typical cycle phase, shopping list items from the symptomInfo data, and a heatmap showing the frequency of that symptom on different cycle days across the user's logs
-                const alreadyAdded = newInsights.some(i => i.cardType === "prediction" && i.type === `Prediction: ${symName}`);
-                if (alreadyAdded) return;
+                console.log(`🔮 [${symName}] day ${day} → score: ${score.toFixed(2)} (threshold: 0.8)`);
+                
+                if (score < 1.1) {
+                    console.log(`   ❌ Skipped — score too low`);
+                    return;
+                }
+                
+                const info = symptomInfoLookup(symName) || {};
+                
+                if (!info.shoppingList || info.shoppingList.length === 0) {
+                    console.log(`   ❌ Skipped — no shopping list for "${symName}"`);
+                    return;
+                }
 
+                const alreadyAdded = newInsights.some(i => i.cardType === "prediction" && i.type === `Prediction: ${symName}`);
+                if (alreadyAdded) {
+                    console.log(`   ❌ Skipped — already added`);
+                    return;
+                }
+
+                console.log(`   ✅ Prediction added — score ${score.toFixed(2)} on cycle day ${day}`);
+                console.log(`   🛒 Shopping list: ${info.shoppingList.join(', ')}`);
                 // Add a new prediction insight card to the newInsights array 
                 newInsights.push({
                     cardType: "prediction",
@@ -619,6 +633,7 @@ export default function InsightsScreen() {
                         avgLength: resolvedAvgLength,
                     }
                 });
+                console.log("DONE")
             });
         });
 

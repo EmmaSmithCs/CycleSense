@@ -19,7 +19,7 @@
     - Provides an interface for users to change their password, which requires reauthentication with the current password before updating to the new password in Firebase Authentication.
     - Allows users to download their cycle data as a PDF for a selected time range (week, month, or 3 months) by fetching the relevant data from Firestore, generating an HTML representation, converting it to PDF using Expo Print, and sharing it using Expo Sharing.
     - Provides options for users to delete all their cycle data or to delete their account entirely, with confirmation prompts to prevent accidental deletion.
-    
+
 */
 
 // Imports
@@ -260,7 +260,7 @@ export default function ProfileScreen() {
                             <td>${formatDate(new Date(l.date))}</td>
                             <td>${l.bleeding || 'None'}</td>
                             <td>${symptoms}</td>
-                            <td>${l.notes}</td>
+                            <td>${l.notes || 'N/A '}</td>
                         </tr>
                     `;
                     
