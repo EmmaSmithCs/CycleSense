@@ -6,14 +6,18 @@
     "orientation": "portrait",
     "icon": "./assets/CycleSenseLogo.png",
     "notification": {
-        "icon": "./assets/CycleSenseLogoGrey.png",
-        "color": "#FFFFFF"
+      "icon": "./assets/CycleSenseLogoGrey.png",
+      "color": "#FFFFFF"
     },
     "scheme": "periodtracker",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.emmadibbs.periodtracker",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
@@ -47,6 +51,12 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "dbad581a-d1ae-470d-86d7-590da4a041c4"
+      }
     }
   }
 }

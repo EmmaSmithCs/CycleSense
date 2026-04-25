@@ -14,8 +14,10 @@
 
 // Imports
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { onAuthStateChanged, User } from "firebase/auth";
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Theme, ThemeName, defaultTheme, themes } from "../constants/theme";
+import { defaultTheme, Theme, ThemeName, themes } from "../constants/theme";
+import { auth } from "../firebase/config";
 
 // Type for the ThemeContext
 type ThemeContextType = {
@@ -32,27 +34,33 @@ const ThemeContext = createContext<ThemeContextType>({
 });
 
 // Theme key used for storing the selected theme in AsyncStorage, allowing the app to remember the user's theme choice across sessions
-const THEME_KEY = "app_theme";
+const themeKey = (uid: string | null) => `app_theme_${uid ?? "guest"}`;
 
 // ThemeProvider component that wraps the app and provides the current theme and a function to update it through context. It initializes the theme from AsyncStorage on mount and updates AsyncStorage whenever the theme is changed.
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
     
-    // State variable to hold the current theme name, initialized to the default theme
+    // State variable to hold the current theme name, initialized to the default theme and set the user
     const [themeName, setThemeName] = useState<ThemeName>(defaultTheme);
+    const [currentUser, setCurrentUser] = useState<User | null>(null);
 
     // On component mount, load the stored theme from AsyncStorage and set it as the current theme if it exists and is valid
     useEffect(() => {
-        AsyncStorage.getItem(THEME_KEY).then((stored) => {
-            if (stored && stored in themes) {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+            setCurrentUser(user);
+            const stored = await AsyncStorage.getItem(themeKey(user?.uid ?? null));
+            if ( stored && stored in themes ) {
                 setThemeName(stored as ThemeName);
+            } else {
+                setThemeName(defaultTheme);
             }
         });
+        return () => unsubscribe();
     }, []);
 
     // Function to update the current theme by name, which also saves the selection to AsyncStorage for persistence across app restarts
     const setTheme = async (name: ThemeName) => {
         setThemeName(name);
-        await AsyncStorage.setItem(THEME_KEY, name);
+        await AsyncStorage.setItem(themeKey(currentUser?.uid ?? null), name);
     };
 
     // Provide the current theme object, theme name, and setTheme function to the rest of the app through context
