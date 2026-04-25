@@ -58,12 +58,11 @@ export default function Signup() {
         try {
             await signup(email, password);
             // If the signup is successful, navigate the user to the onboarding screen
-            router.replace("/(auth)/onboarding");
         } catch (e: any) {
             // If there is an error during signup (e.g., email already in use), set the error state to the error message to display it on the screen
             setError(e.message);
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     // Render the signup form

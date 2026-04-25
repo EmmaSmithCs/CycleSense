@@ -171,7 +171,6 @@ export default function DailyTrackingScreen() {
     const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
     const [selectedIntensity, setSelectedIntensity] = useState<number>(3);
     const [cycleDataLoadedOnce, setCycleDataLoadedOnce] = useState(false);
-    const [userReady, setUserReady] = useState(false);
     const [hasLoggedToday, setHasLoggedToday] = useState(false);
 
     // Function to get a greeting message based on the current time of day
@@ -193,7 +192,6 @@ export default function DailyTrackingScreen() {
             .toUpperCase(); 
     };
 
-    // Effect to listen for authentication state changes and fetch user data when logged in
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
             if (!user) {
@@ -201,41 +199,24 @@ export default function DailyTrackingScreen() {
                 return;
             }
 
-            const userDocRef = doc(db, 'users', user.uid);
-            const userSnapshot = await getDoc(userDocRef);
+            const [userSnapshot] = await Promise.all([
+                getDoc(doc(db, 'users', user.uid)),
+                fetchCycleData(),
+            ]);
 
             if (userSnapshot.exists()) {
                 setUserName(userSnapshot.data().name || "User");
             }
 
+            refreshGamification();
             setLoading(false);
         });
-
         return unsubscribe;
     }, []);
 
-    // Makes sure the streak is visible on first load
-    useEffect(() => {
-        if (userReady) {
-            refreshGamification();
-        }
-    }, [userReady]);
 
-    // Effect to listen for authentication state changes and set userReady state for triggering data fetch
-    useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, (user) => {
-            setUserReady(!!user);
-        });
 
-        return unsubscribe;
-    }, []);
 
-    // Effect to fetch cycle data once the user is ready (logged in) and whenever the userReady state changes
-    useEffect(() => {
-        if (userReady) {
-            fetchCycleData();
-        }
-    }, [userReady]);
 
     // Create a date range of 7 days centered around today for the date selection buttons
     const dateRange = Array.from({ length: 7 }, (_, i) => addDays(getToday, i - 3));
@@ -432,7 +413,7 @@ export default function DailyTrackingScreen() {
     const notesInputRef = React.useRef<TextInput>(null);
 
     // If the data is still loading, show a loading indicator 
-    if (loading || (!cycleDataLoadedOnce && loadingCycleData)) {
+    if (loading || loadingCycleData) {
         return (
             <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: c.background }}>
                 <ActivityIndicator size="large" color={c.primary} />

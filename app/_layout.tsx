@@ -38,45 +38,46 @@ export default function RootLayout() {
     const [loading, setLoading] = useState(true);
     const [onboarded, setOnboarded] = useState<boolean | null>(null);
     const [showBlur, setShowBlur] = useState(true);
+    const [authReady, setAuthReady] = useState(false);
     const isAuthenticating = useRef(false);
     const hasLaunchChecked = useRef(false);
     const prevAppState = useRef<string>('active');
     const router = useRouter();
     const segments = useSegments();
 
-    // Listen for auth state changes
+    // Listen for auth and onboarded state changes
     useEffect(() => {
         const unsubscribeAuth = onAuthStateChanged(auth, (firebaseUser) => {
             setUser(firebaseUser);
+
             if (!firebaseUser) {
                 setOnboarded(null);
-                setLoading(false);
+                setAuthReady(true);
+                return;
             }
+
+            setAuthReady(false);
+            const unsubOnboarded = onSnapshot(doc(db, 'users', firebaseUser.uid), (doc) => {
+                setOnboarded(doc.data()?.onboarded ?? false);
+                setAuthReady(true);
+            });
+
         });
         return unsubscribeAuth;
     }, []);
-
-    // Listen for onboarded status changes
-    useEffect(() => {
-        if (!user) return;
-        const unsubscribeDoc = onSnapshot(doc(db, 'users', user.uid), (snap) => {
-            setOnboarded(snap.data()?.onboarded ?? false); 
-            setLoading(false);
-        });
-        return unsubscribeDoc;
-    }, [user]);
-
+        
     // Routing logic
     useEffect(() => {
-        if (loading) return;
+        if (!authReady) return; // Wait for auth state to be determined
         const inAuthGroup = segments[0] === '(auth)';
         if (!user && !inAuthGroup) {
-            router.replace('/(auth)/login'); // Only go to login if not already in auth group
+            router.replace('/(auth)/login');
         } else if (user && !onboarded && segments[1] !== 'onboarding') {
-            router.replace('/(auth)/onboarding'); // Only go to onboarding if not already there
+            router.replace('/(auth)/onboarding');
         } else if (user && onboarded && inAuthGroup) {
-            router.replace('/(tabs)'); // Only go to main app if not already there
+            router.replace('/(tabs)');
         }
+
     }, [user, loading, onboarded, segments]);
 
     // Run lock check only after loading+routing is done

@@ -43,11 +43,10 @@ export default function Login() {
         setError(null);
         try {
             await login(email, password);
-            router.replace("/(tabs)");
         } catch (e: any) {
             setError("Incorrect email or password. Please try again."); // Show an error message if the login fails due to incorrect credentials.
+            setLoading(false);
         }
-        setLoading(false);
     };
 
     // Render login form
