@@ -37,7 +37,7 @@ export default function RootLayout() {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
     const [onboarded, setOnboarded] = useState<boolean | null>(null);
-    const [showBlur, setShowBlur] = useState(true);
+    const [showBlur, setShowBlur] = useState(false);
     const [authReady, setAuthReady] = useState(false);
     const isAuthenticating = useRef(false);
     const hasLaunchChecked = useRef(false);
@@ -53,6 +53,7 @@ export default function RootLayout() {
             if (!firebaseUser) {
                 setOnboarded(null);
                 setAuthReady(true);
+                setLoading(false);
                 return;
             }
 
@@ -60,6 +61,7 @@ export default function RootLayout() {
             const unsubOnboarded = onSnapshot(doc(db, 'users', firebaseUser.uid), (doc) => {
                 setOnboarded(doc.data()?.onboarded ?? false);
                 setAuthReady(true);
+                setLoading(false);
             });
 
         });

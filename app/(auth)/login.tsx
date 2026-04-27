@@ -86,8 +86,14 @@ export default function Login() {
                         keyboardType="email-address"
                     />
 
-                    {/* Password field */ }
-                    <Text style={styles.label}>Password</Text>
+                    {/* Password field with forgot password link*/ }
+                    <View style={styles.passwordLabelRow}>
+                        <Text style={styles.label}>Password</Text>
+                        <TouchableOpacity onPress={() => router.push("/(auth)/forgotPassword")}>
+                            <Text style={styles.forgotLink}>Forgot password?</Text>
+                        </TouchableOpacity>
+                    </View>
+
                     <TextInput
                         style={styles.input}
                         placeholder="••••••••"
@@ -251,4 +257,19 @@ const styles = StyleSheet.create({
         fontWeight: "700",
 
     },
+
+    passwordLabelRow: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+        marginTop: 12,
+        marginBottom: 6,
+    },
+
+    forgotLink: {
+        fontSize: 13,
+        color: "#f06292",
+        fontWeight: 600,
+
+    }
 });

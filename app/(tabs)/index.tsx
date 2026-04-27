@@ -75,7 +75,7 @@ const symptomCategories = [
     {
         key: "mucus",
         title: "Cervical mucus",
-        options: ["None", "Watery", "Egg white", "Creamy", "Sticky", "Clumpy white", "Brown", "Pink"],
+        options: ["Mucus: None", "Watery", "Egg white", "Creamy", "Sticky", "Clumpy white", "Brown", "Pink"],
     },
 
     // Energy level category
@@ -110,7 +110,7 @@ const symptomCategories = [
     {
         key: "birthControl",
         title: "Birth control",
-        options: ["None", "Pill", "Missed Pill", "IUD", "Implant", "Injection", "Patch", "Ring", "Condoms", "Other"],
+        options: ["BC: None", "Pill", "Missed Pill", "IUD", "Implant", "Injection", "Patch", "Ring", "Condoms", "Other"],
     },
 
     // Medication category for tracking any medications taken that may affect symptoms or cycle
@@ -408,6 +408,11 @@ export default function DailyTrackingScreen() {
         }
     };
 
+    const getDisplayName = (item: string) =>
+        item.startsWith("Mucus: ") || item.startsWith("BC: ")
+        ? "None"
+        : item;
+
     // Refs for managing scroll position and text input focus in the log modal
     const scrollRef = React.useRef<ScrollView>(null);
     const notesInputRef = React.useRef<TextInput>(null);
@@ -609,7 +614,7 @@ export default function DailyTrackingScreen() {
                                                     >
                                                         {/* Display the symptom name with a different color if it is selected, and show an intensity badge if the symptom has intensity tracking and is selected */ }
                                                         <Text style={{ color: isSelected ? "#fff" : c.text, fontSize: 12 }}>
-                                                            {item}
+                                                            {getDisplayName(item)}
                                                         </Text>
                                                         {intensityEntry?.intensity !== undefined && (
                                                             <View style={{

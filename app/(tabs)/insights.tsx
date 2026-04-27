@@ -32,6 +32,7 @@ import React, { useCallback, useRef, useState } from 'react';
 import { ActivityIndicator, Animated, FlatList, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import Svg, { Line, Rect, Text as SvgText } from 'react-native-svg';
 import { symptomInfo } from '../data/symptomInfo';
+import { getSymptomReason } from '../data/symptomReasons';
 import { buildCycles, getCycleInfo } from '../utils/cyclePrediction';
 
 // Type for symptom entries in daily logs
@@ -126,40 +127,60 @@ function IntensityChart({ data, accent, progress }: {
     const maxVal = 5;
     const gap = (width - barWidth * data.length) / (data.length + 1);
 
+    // Get today to highlight it
+    const todayLabel = format(new Date(), 'dd/MM');
+    const topPad = 14;
+
     // Render the chart using SVG elements
     return (
         <View style={{ alignItems: 'center', marginTop: 12 }}>
             {/* SVG container for the intensity bars and average line */}
-            <Svg width={width} height={height + 20}>
+            <Svg width={width} height={height + 30 + topPad}>
                 {data.map((d, i) => {
                     const barHeight = (d.intensity / maxVal) * height;
                     const x = gap + i * (barWidth + gap);
                     const y = height - barHeight;
+                    const isToday = d.date === todayLabel;
+
                     return (
                         <React.Fragment key={i}>
+                            {/* Highlight Today*/}
+                            {isToday && (
+                                <Rect   
+                                    x={x-3}
+                                    y={topPad-3}
+                                    width={barWidth+6}
+                                    height={height+6}
+                                    rx={9}
+                                    fill="none"
+                                    stroke={accent}
+                                    strokeWidth={2}
+                                    opacity={0.5}
+                                />
+                            )}
                             {/* Background bar */}
                             <Rect
                                 x={x}
-                                y={0}
+                                y={topPad}
                                 width={barWidth}
                                 height={height}
                                 rx={6}
-                                fill={accent + '22'}
+                                fill={isToday ? accent + "44" : accent + "22"}
                             />
                             {/* Filled bar */}
                             <Rect
                                 x={x}
-                                y={y}
+                                y={y+topPad}
                                 width={barWidth}
                                 height={barHeight}
                                 rx={6}
                                 fill={accent}
-                                opacity={0.85}
+                                opacity={isToday ? 1 : 0.65}
                             />
                             {/* Intensity number */}
                             <SvgText
                                 x={x + barWidth / 2}
-                                y={y - 4}
+                                y={isToday ? y - 4 + topPad - 2 : y - 4 + topPad }
                                 fontSize={10}
                                 fill={accent}
                                 textAnchor="middle"
@@ -170,13 +191,28 @@ function IntensityChart({ data, accent, progress }: {
                             {/* Date label */}
                             <SvgText
                                 x={x + barWidth / 2}
-                                y={height + 14}
-                                fontSize={8}
+                                y={height + 14+ topPad}
+                                fontSize={isToday ? 7.5 : 7}
                                 fill={accent + 'aa'}
                                 textAnchor="middle"
+                                fontWeight={isToday ? "700" : "400"}
                             >
                                 {d.date}
                             </SvgText>
+
+                            {/* Today label */}
+                            {isToday && (
+                                <SvgText 
+                                    x={x+barWidth/2}
+                                    y={height+26 + topPad}
+                                    fontSize={7}
+                                    fill={accent}
+                                    textAnchor='middle'
+                                    fontWeight="600"
+                                >
+                                    Today
+                                </SvgText>
+                            )}
                         </React.Fragment>
                     );
                 })}
@@ -187,9 +223,9 @@ function IntensityChart({ data, accent, progress }: {
                     return (
                         <Line
                             x1={gap / 2}
-                            y1={avgY}
+                            y1={avgY+topPad}
                             x2={width - gap / 2}
-                            y2={avgY}
+                            y2={avgY+topPad}
                             stroke={accent}
                             strokeWidth={1}
                             strokeDasharray="4,3"
@@ -365,8 +401,15 @@ export default function InsightsScreen() {
 
         // If today's log exists, create a summary insight that shows how many symptoms were tracked today
         if (todayLog) {
+
+            const displayName = (name: string) =>
+                name === "High" ? "High Energy"
+                : name === "Medium" ? "Meidum Energy"
+                : name === "Low" ? "Low Energy"
+                : name;
+
             const summarySymptoms = todayLog.symptoms.map(sym => ({
-                name: sym.name,
+                name: displayName(sym.name),
                 hasShoppingList: !!(symptomInfoLookup(sym.name)?.shoppingList?.length)
             }));
 
@@ -396,13 +439,30 @@ export default function InsightsScreen() {
                 const hasContent = Array.isArray(info.shoppingList) && info.shoppingList.length > 0;
                 if (!hasContent) return;
 
+                const displayName = sym.name === "High" ? "High Energy"
+                    : sym.name === "Medium" ? "Meidum Energy"
+                    : sym.name === "Low" ? "Low Energy"
+                    : sym.name;
+
+                const otherSymptomsNames = todayLog.symptoms
+                    .filter(s => s.name !== sym.name)
+                    .map(s => s.name);
+
                 // Create a symptom insight card that displays the name of the symptom tracked today, along with additional details such as a description, tips, typical cycle phase, and shopping list items associated with that symptom from the symptomInfo data
                 newInsights.push({
                     cardType: "symptom",
-                    type: `Symptom: ${sym.name}`,
-                    message: `You tracked ${sym.name} today`,
+                    type: `Symptom: ${displayName}`,
+                    message: `You tracked ${displayName} today`,
                     details: {
                         description: info.description ?? "No description available.",
+                        why: getSymptomReason(
+                            sym.name,
+                            currentPhase as any,
+                            todayLog.bleeding,
+                            otherSymptomsNames,
+                            sym.intensity,
+                            cycleDay
+                        ),
                         tips: Array.isArray(info.tips) ? info.tips : [],
                         phase: info.typicalCyclePhase ?? "Unknown phase",
                         shoppingList: Array.isArray(info.shoppingList) ? info.shoppingList : [],
@@ -1039,7 +1099,7 @@ export default function InsightsScreen() {
                                         <Text style={[styles.chevron, { color: config.accent }]}>{isExpanded ? "▲" : "▼"}</Text>
                                     </View>
                                     <Animated.View style={{
-                                        maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 350] }),
+                                        maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 600] }),
                                         overflow: "hidden",
                                         opacity: animation,
                                     }}>
@@ -1048,6 +1108,14 @@ export default function InsightsScreen() {
                                         {/* Description of the insight */ }
                                         {item.details?.description && (
                                             <Text style={[styles.expandDescription, { color: c.textSecondary }]}>{item.details.description}</Text>
+                                        )}
+                                        
+                                        {/* Why am I feeling this?*/}
+                                        {item.details?.why && (
+                                            <View style={styles.whyBlock}>
+                                                <Text style={[styles.sectionLabel, { color: config.accent}]}>Why am I feeling this?</Text>
+                                                <Text style={[styles.whyText, { color: c.textSecondary}]}>{item.details.why}</Text>
+                                            </View>
                                         )}
 
                                         {/* Typical cycle phase for the symptom, if available */ }
@@ -1318,5 +1386,18 @@ const styles = StyleSheet.create({
         lineHeight: 19, 
         marginTop: 6, 
         marginBottom: 4 
+    },
+
+    whyBlock: {
+        marginTop: 10,
+        backgroundColor: "#00000008",
+        borderRadius: 10,
+        padding: 10
+    },
+
+    whyText: {
+        fontSize: 13,
+        lineHeight: 20,
+        fontStyle: 'italic',
     }
 });

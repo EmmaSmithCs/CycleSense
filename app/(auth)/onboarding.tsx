@@ -206,7 +206,7 @@ export default function Onboarding() {
                         <Text style={styles.subtitle}>Tell us a little about yourself to get started.</Text>
                     
                         {/* Input field for the user's name */ }
-                        <Text style={styles.label}>Your name</Text>
+                        <Text style={styles.label}>Your first name</Text>
                         <TextInput
                             style={styles.input}
                             placeholder="e.g. Emma"
