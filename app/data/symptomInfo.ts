@@ -9,8 +9,9 @@
     - description: A brief explanation of the symptom and what it entails.
     - typicalCyclePhase: The phase of the menstrual cycle during which the symptom is most commonly experienced.
     - tips: Practical advice and strategies for managing the symptom effectively.
-    - shoppingList: Recommendations for products that may help alleviate the symptom, if applicable.
-    - phaseReasons: An explanation of why the symptom may occur during each phase of the menstrual cycle, providing users with a better understanding of the hormonal and physiological changes that contribute to their symptoms.
+    - shoppingList: Non-medication items (heat pads, foods, drinks) that may help alleviate the symptom.
+    - medication: Structured object with recommended and avoid lists, each with name + reason.
+    - phaseReasons: An explanation of why the symptom may occur during each phase of the menstrual cycle.
 
     Key features:
     - Provides a comprehensive overview of common symptoms experienced during the menstrual cycle, along with practical tips and product recommendations for managing those symptoms.
@@ -19,8 +20,26 @@
     
 */
 
-// Exports for symptom information, including descriptions, typical cycle phases, tips for managing symptoms, shopping list recommendations, and explanations for why symptoms may occur during different menstrual cycle phases. 
-export const symptomInfo:Record<string, any> = {
+export type MedicationItem = {
+    name: string;
+    reason: string;
+};
+
+export type MedicationInfo = {
+    recommended: MedicationItem[];
+    avoid?: MedicationItem[];
+};
+
+export type SymptomEntry = {
+    description: string;
+    typicalCyclePhase: string;
+    tips: string[];
+    shoppingList: string[] | null;
+    medication?: MedicationInfo;
+    phaseReasons: Record<string, string> | null;
+};
+
+export const symptomInfo: Record<string, SymptomEntry> = {
     "Happy": {
         description: "Feeling good, positive mood, and overall well-being.",
         typicalCyclePhase: "Follicular phase",
@@ -36,8 +55,6 @@ export const symptomInfo:Record<string, any> = {
             Ovulation : "Peak estrogen levels can enhance mood and increase feelings of happiness.",
             Luteal : "Some individuals may experience a temporary boost in mood during the early luteal phase before progesterone levels rise."
         }
-
-
     },
 
     "Calm": {
@@ -63,13 +80,21 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Practice deep breathing exercises or progressive muscle relaxation to manage anxiety.",
             "Reduce caffeine and sugar intake, as they can exacerbate feelings of anxiety.",
-            "Consider talking to a trusted friend or counselor about your concerns.",
+            "Consider talking to a trusted friend or counsellor about your concerns.",
         ],
         shoppingList: [
             "Chamomile tea",
             "Lavender essential oil",
-            "Magnesium supplements",
         ],
+        medication: {
+            recommended: [
+                { name: "Magnesium glycinate (e.g. Calm or Solgar)", reason: "Supports the nervous system and has evidence for reducing anxiety and irritability in the luteal phase" },
+                { name: "Vitamin B6 (25–50mg)", reason: "Helps produce serotonin and GABA; shown to reduce premenstrual anxiety and mood symptoms" },
+            ],
+            avoid: [
+                { name: "High-dose caffeine supplements or stimulants", reason: "Can amplify anxiety and overstimulate the nervous system, worsening symptoms" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Hormonal drops during menstruation can contribute to feelings of anxiety for some individuals.",
             Follicular: "Hormones adjusting after menstruation can lead to temporary feelings of unease.",
@@ -84,13 +109,21 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Prioritize rest and ensure you're getting enough sleep to help manage irritability.",
             "Practice stress-management techniques, such as deep breathing or mindfulness.",
-            "Consider discussing your feelings with a trusted friend or counselor.",
+            "Consider discussing your feelings with a trusted friend or counsellor.",
         ],
         shoppingList: [
-            "Valerian root supplements",
             "Passionflower tea",
-            "Omega-3 fatty acid supplements",
         ],
+        medication: {
+            recommended: [
+                { name: "Magnesium glycinate (e.g. Calm or Solgar)", reason: "Deficiency is linked to irritability and tension; supplementing in the luteal phase can noticeably reduce emotional reactivity" },
+                { name: "Omega-3 fatty acids (e.g. Nordic Naturals, 1–2g EPA/DHA)", reason: "Anti-inflammatory and shown to support mood regulation, reducing luteal-phase irritability" },
+                { name: "Vitamin B6 (25–50mg)", reason: "Supports serotonin synthesis, which drops before a period and contributes to irritability" },
+            ],
+            avoid: [
+                { name: "Valerian root (high doses)", reason: "Can cause rebound agitation in some individuals; start low or try alternatives first" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Hormone levels are low during menstruation, which can contribute to irritability.",
             Follicular: "Mood usually improves during the follicular phase, but some individuals may still experience irritability as hormones adjust after menstruation.",
@@ -104,21 +137,29 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Luteal phase",
         tips: [
             "Get some sunlight and engage in physical activity, as both can help boost mood.",
-            "Consider talking to a trusted friend or counselor about your feelings.",
+            "Consider talking to a trusted friend or counsellor about your feelings.",
             "Practice self-compassion and remind yourself that it's normal to experience mood fluctuations.",
         ],
         shoppingList: [
-            "Vitamin D supplements",
-            "Chocolate",
-            "Comfort Foods"
+            "Dark chocolate",
+            "Comfort foods",
         ],
+        medication: {
+            recommended: [
+                { name: "Vitamin D3 (1000–2000 IU)", reason: "Low vitamin D is strongly associated with low mood; supplementing can improve depressive symptoms, especially in lower-sunlight months" },
+                { name: "Saffron extract (e.g. Affron, 28–30mg)", reason: "Clinically shown to improve mild-to-moderate low mood, including premenstrual depressive symptoms" },
+                { name: "Omega-3 fatty acids (high EPA formulation, 1–2g EPA/DHA)", reason: "EPA in particular has antidepressant effects and supports mood during hormonal shifts" },
+            ],
+            avoid: [
+                { name: "St John's Wort (Hypericum)", reason: "Interacts with many medications including the pill, HRT, antidepressants, and anticoagulants — check with a GP before use" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Hormone levels are low during menstruation, which can contribute to feelings of low mood",
             Follicular: "Your mood may still be recovering post-period, but rising estrogen levels can help improve mood as the phase progresses.",
-            Ovulation: "This is less common in the ovualtion phase but hormonal fluctuations can still cause mood changes for some individuals.",
+            Ovulation: "This is less common in the ovulation phase but hormonal fluctuations can still cause mood changes for some individuals.",
             Luteal: "The hormonal drop before a period can lower mood and contribute to feelings of sadness or lack of interest in activities."
         }
-
     },
 
     "Mood Swings": {
@@ -126,18 +167,27 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Luteal phase",
         tips: [
             "Maintain a stable sleep and meal schedule to help regulate mood.",
-            "Magnesium may help with mood regulation",
-            "Consider talking to a trusted friend or counselor about your feelings.",
+            "Magnesium may help with mood regulation.",
+            "Consider talking to a trusted friend or counsellor about your feelings.",
         ],
         shoppingList: [
-            "Magnesium supplements",
             "Dark chocolate",
-            "Leafy green vegetables"
+            "Leafy green vegetables",
         ],
+        medication: {
+            recommended: [
+                { name: "Magnesium glycinate (e.g. Calm or Solgar)", reason: "Supports serotonin and GABA balance, helping to smooth out mood fluctuations in the luteal phase" },
+                { name: "Vitamin B6 (25–50mg)", reason: "Essential cofactor for serotonin and dopamine production; reduces mood swings in PMS" },
+                { name: "Agnus castus / Vitex (e.g. Femaprin)", reason: "May help regulate luteal-phase hormonal fluctuations, reducing mood instability — allow 2–3 cycles to assess effect" },
+            ],
+            avoid: [
+                { name: "High-dose iron (unless prescribed)", reason: "Excess iron can be pro-oxidative and isn't indicated unless you have confirmed deficiency" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Hormone levels are at the lowest during menstruation, which can contribute to mood swings.",
-            Follicular: "Your mood may stil be recovering post-period, but rising estrogen levels can help stabilize mood as the phase progresses.",
-            Ovulation: "This is less common in the ovualtion phase but hormonal fluctuations can still cause mood changes for some individuals.",
+            Follicular: "Your mood may still be recovering post-period, but rising estrogen levels can help stabilize mood as the phase progresses.",
+            Ovulation: "This is less common in the ovulation phase but hormonal fluctuations can still cause mood changes for some individuals.",
             Luteal: "The drop in estrogen and progesterone levels in the luteal phase can contribute to increased irritability and emotional sensitivity."
         }
     },
@@ -146,19 +196,24 @@ export const symptomInfo:Record<string, any> = {
         description: "Feeling more sensitive, emotional, or easily moved to tears.",
         typicalCyclePhase: "Luteal phase",
         tips: [
-            "Allow yourself to feel and express your emotions without judgment.",
+            "Allow yourself to feel and express your emotions without judgement.",
             "Journaling can be a helpful way to process your feelings during this time.",
             "Practice self-care and engage in activities that bring you comfort and joy.",
         ],
         shoppingList: [
-            "Comfort foods",
             "Chamomile tea",
-            "Chocolate"
+            "Dark chocolate",
         ],
+        medication: {
+            recommended: [
+                { name: "Magnesium glycinate (e.g. Calm)", reason: "Helps regulate the nervous system and reduce emotional over-reactivity in the luteal phase" },
+                { name: "Vitamin B6 (25–50mg)", reason: "Supports serotonin synthesis; shown to reduce emotional sensitivity in premenstrual syndrome" },
+            ],
+        },
         phaseReasons: {
             Menstrual: "Hormone levels are at the lowest during menstruation, which can contribute to mood swings.",
-            Follicular: "Your mood may stil be recovering post-period, but rising estrogen levels can help stabilize mood as the phase progresses.",
-            Ovulation: "This is less common in the ovualtion phase but hormonal fluctuations can still cause mood changes for some individuals.",
+            Follicular: "Your mood may still be recovering post-period, but rising estrogen levels can help stabilize mood as the phase progresses.",
+            Ovulation: "This is less common in the ovulation phase but hormonal fluctuations can still cause mood changes for some individuals.",
             Luteal: "The drop in estrogen and progesterone levels in the luteal phase can contribute to increased irritability and emotional sensitivity."
         }
     },
@@ -173,7 +228,7 @@ export const symptomInfo:Record<string, any> = {
         ],
         shoppingList: null,
         phaseReasons: {
-            Menstrual: "Energy may begin to return after rest",
+            Menstrual: "Energy may begin to return after rest.",
             Follicular: "The rise in estrogen can boost energy levels and improve mood, leading to feelings of being energized.",
             Ovulation: "This is the peak of energy due to high estrogen levels, which can enhance mood and increase feelings of vitality.",
             Luteal: "In the early luteal phase, you may still feel some of the energizing effects of estrogen before progesterone levels rise and potentially cause fatigue."
@@ -189,17 +244,25 @@ export const symptomInfo:Record<string, any> = {
             "Reduce physical and mental stress as much as possible during this time.",
         ],
         shoppingList: [
-            "Iron supplements",
-            "Coffee",
-            "Energy drinks (in moderation)",
+            "Coffee (in moderation)",
         ],
+        medication: {
+            recommended: [
+                { name: "Iron bisglycinate (e.g. Spatone, Gentle Iron by Solgar)", reason: "Better tolerated than ferrous sulfate; helps restore iron stores lost during menstruation, directly addressing fatigue" },
+                { name: "Vitamin B12 (methylcobalamin, 1000mcg)", reason: "Supports red blood cell production and energy metabolism; deficiency is a common cause of fatigue" },
+                { name: "Vitamin C (with iron)", reason: "Significantly increases iron absorption when taken together — especially useful if eating plant-based iron sources" },
+            ],
+            avoid: [
+                { name: "High-dose iron supplements without testing", reason: "Excess iron is harmful; check ferritin levels before supplementing beyond food-level doses" },
+                { name: "Energy drinks (high dose)", reason: "Provide a short-lived spike followed by a crash, and can disrupt sleep — worsening underlying fatigue" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Blood loss and low hormone levels during menstruation can contribute to feelings of exhaustion.",
-            Follicular: "The body is recovering from menstruation some individuals may still feel tired, but energy levels typically start to improve as estrogen rises.",
+            Follicular: "The body is recovering from menstruation; some individuals may still feel tired, but energy levels typically start to improve as estrogen rises.",
             Ovulation: "Energy levels can dip after the peak of ovulation due to hormonal fluctuations, but many individuals still feel energized during this phase.",
             Luteal: "Progesterone increase can cause fatigue and lower energy levels, especially in the later luteal phase leading up to menstruation."
         }
-
     },
 
     "Cramps": {
@@ -207,14 +270,25 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Menstrual phase",
         tips: [
             "Applying heat to the lower abdomen can help relieve cramps.",
-            "Over-the-counter pain relievers, such as ibuprofen, can be effective for managing menstrual cramps.",
+            "Over-the-counter pain relievers, such as Ibuprofen, can be effective for managing menstrual cramps.",
             "Gentle exercise, like walking or yoga, may help reduce cramping for some individuals.",
         ],
         shoppingList: [
             "Heating pad",
-            "Ibuprofen",
-            "Ginger tea"
+            "Ginger tea",
         ],
+        medication: {
+            recommended: [
+                { name: "Ibuprofen (e.g. Nurofen, 400mg every 6–8hrs with food)", reason: "Anti-inflammatory — blocks prostaglandins directly, making it the most effective OTC option for period cramps; start at the first sign of bleeding for best effect" },
+                { name: "Naproxen sodium (e.g. Feminax Ultra, 250–500mg twice daily)", reason: "Longer-acting NSAID, good if cramps persist all day; one dose covers 8–12 hours" },
+                { name: "Mefenamic acid (e.g. Ponstan, prescription in UK)", reason: "Specifically licensed for menstrual pain; works by reducing prostaglandins more directly than ibuprofen — ask your GP" },
+                { name: "Magnesium glycinate (200–400mg daily from luteal phase)", reason: "Reduces uterine muscle tension; taking it preventatively from a week before your period can lessen cramping severity" },
+            ],
+            avoid: [
+                { name: "Paracetamol alone", reason: "Treats pain but does not target prostaglandins — less effective for cramp-type pain; combine with an NSAID if cramps are moderate or severe" },
+                { name: "Aspirin", reason: "Thins the blood, which can increase menstrual flow; not recommended as a first choice for period pain" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Uterus contractions to shed the uterine lining can cause cramps, and prostaglandins released during menstruation can lead to cramping.",
             Follicular: "This is less common as the lining rebuilds but some individuals may still experience mild cramping as the uterus adjusts.",
@@ -229,13 +303,24 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Stay hydrated and avoid skipping meals, as dehydration and low blood sugar can trigger headaches.",
             "Rest in a quiet, dark room if you experience a headache, and consider using a cold compress on your forehead.",
-            "Over-the-counter pain relievers, such as ibuprofen or acetaminophen, can help manage headache pain.",
+            "Over-the-counter pain relievers, such as Ibuprofen or paracetamol, can help manage headache pain.",
         ],
         shoppingList: [
-            "Pain relievers",
             "Cold compress",
-            "Hydrating beverages"
+            "Hydrating beverages",
         ],
+        medication: {
+            recommended: [
+                { name: "Ibuprofen (e.g. Nurofen, 400mg)", reason: "Effective for hormonal headaches; anti-inflammatory action targets the prostaglandin-driven component of menstrual headaches" },
+                { name: "Paracetamol (500–1000mg)", reason: "First-line for mild to moderate headache; well tolerated and can be combined with ibuprofen for stronger relief" },
+                { name: "Ibuprofen + paracetamol combination (e.g. Nuromol)", reason: "The combination provides better pain relief than either alone for tension and hormonal headaches" },
+                { name: "Magnesium glycinate (400mg daily, preventative)", reason: "Good evidence for reducing frequency of hormonal and menstrual headaches when taken consistently" },
+            ],
+            avoid: [
+                { name: "Codeine-containing products used frequently", reason: "Can cause medication-overuse headache (rebound headache) if taken more than 10–15 days per month" },
+                { name: "Caffeine (excess)", reason: "While small amounts may help, excess or withdrawal of caffeine is a common headache trigger during hormonal shifts" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "The drop in estrogen levels during menstruation can trigger headaches.",
             Follicular: "Hormone shifts may affect head tension and blood flow, but headaches are less common during this phase.",
@@ -250,13 +335,26 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Identify and avoid potential migraine triggers, such as certain foods, stress, or hormonal changes.",
             "Consider keeping a migraine diary to track patterns and triggers.",
-            "Rest and use over-the-counter pain relievers, such as ibuprofen or acetaminophen, to manage migraine symptoms. If migraines are severe or frequent, consult a healthcare professional for further evaluation and treatment options.",
+            "Rest and use over-the-counter pain relievers to manage migraine symptoms. If migraines are severe or frequent, consult a healthcare professional for further evaluation and treatment options.",
         ],
         shoppingList: [
-            "Aspirin",
-            "Migraine relief medications",
-            "Hydrating beverages"
+            "Hydrating beverages",
+            "Eye mask / blackout curtain",
         ],
+        medication: {
+            recommended: [
+                { name: "Sumatriptan (e.g. Imigran, 50mg — OTC in UK)", reason: "Triptan class — specifically designed for migraines; constricts dilated blood vessels and blocks pain pathways; most effective when taken early" },
+                { name: "Ibuprofen (400–600mg) + Domperidone (10mg)", reason: "Taking an antiemetic alongside an NSAID improves absorption and treats nausea at the same time — ask your GP or pharmacist" },
+                { name: "Aspirin (900mg, soluble)", reason: "High-dose soluble aspirin is evidence-based for acute migraine; faster absorption than tablets" },
+                { name: "Magnesium glycinate (400mg daily, preventative)", reason: "NICE-endorsed preventative for menstrual migraine; particularly effective taken from Day 15 through Day 3 of next cycle" },
+                { name: "Riboflavin / Vitamin B2 (400mg daily)", reason: "Recommended by the British Association for the Study of Headache (BASH) as a migraine preventative; builds mitochondrial energy in nerve cells" },
+            ],
+            avoid: [
+                { name: "Paracetamol alone for moderate–severe migraine", reason: "Unlikely to be sufficient for true migraine; may delay effective treatment" },
+                { name: "Codeine or opioid-based analgesics", reason: "High risk of medication-overuse headache with regular use; not recommended in migraine guidelines" },
+                { name: "Triptans if you have cardiovascular disease or uncontrolled hypertension", reason: "Vasoconstrictive effect is contraindicated — speak to your GP for alternatives" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "The drop in estrogen levels during menstruation can trigger migraines.",
             Follicular: "Hormone shifts may affect migraine frequency, but migraines are less common during this phase.",
@@ -271,15 +369,24 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Applying heat to the lower back can help relieve pain.",
             "Gentle stretching and low-impact exercises, such as yoga or walking, may help alleviate back pain for some individuals.",
-            "Over-the-counter pain relievers, such as ibuprofen, can be effective for managing back pain during menstruation.",
+            "Over-the-counter pain relievers, such as Ibuprofen, can be effective for managing back pain during menstruation.",
         ],
         shoppingList: [
             "Heating pad",
-            "Ibuprofen",
-            "Epsom salt"
+            "Epsom salt",
         ],
+        medication: {
+            recommended: [
+                { name: "Ibuprofen (e.g. Nurofen, 400mg every 6–8hrs with food)", reason: "Anti-inflammatory; reduces prostaglandin-driven uterine contractions that radiate to the lower back via shared nerve pathways" },
+                { name: "Naproxen sodium (e.g. Feminax Ultra)", reason: "Longer-lasting NSAID — useful if back pain persists throughout the day" },
+                { name: "Magnesium glycinate (topical spray or oral supplement)", reason: "Helps relax muscle tension in the lower back; topical magnesium can be applied directly to the affected area" },
+            ],
+            avoid: [
+                { name: "Paracetamol alone for menstrual back pain", reason: "Does not address the prostaglandin component; less effective for cramp-related back pain than NSAIDs" },
+            ]
+        },
         phaseReasons: {
-            Menstrual: "Uterine contractions can lead to lower back pain because of shared nerve pathway.",
+            Menstrual: "Uterine contractions can lead to lower back pain because of shared nerve pathways.",
             Follicular: "This is less common as the lining rebuilds but some individuals may still experience mild back pain as the uterus adjusts.",
             Ovulation: "Hormonal shifts may cause lower back discomfort for some individuals, but it's typically less intense than menstrual back pain.",
             Luteal: "Water retention can add pressure to the back."
@@ -297,13 +404,23 @@ export const symptomInfo:Record<string, any> = {
         shoppingList: [
             "Supportive bra",
             "Warm compress",
-            "Caffeine-free beverages"
+            "Caffeine-free beverages",
         ],
+        medication: {
+            recommended: [
+                { name: "Evening primrose oil (1000mg daily)", reason: "Contains GLA (gamma-linolenic acid) which may reduce cyclic breast pain; most evidence supports use over at least 3 cycles" },
+                { name: "Magnesium glycinate (300–400mg daily from ovulation)", reason: "Reduces fluid retention that contributes to breast swelling and tenderness in the luteal phase" },
+                { name: "Vitamin B6 (25–50mg)", reason: "May reduce prolactin levels slightly, which can contribute to breast tenderness" },
+            ],
+            avoid: [
+                { name: "Excess caffeine", reason: "Methylxanthines found in caffeine can increase breast tissue sensitivity — reducing intake often helps cyclic breast pain" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "As hormone levels drop during menstruation, breast tissue can become less swollen and tender.",
             Follicular: "Low hormone levels during the early follicular phase can lead to reduced breast tenderness.",
             Ovulation: "Hormonal rises can cause some breast tenderness, but it's typically less intense than in the luteal phase.",
-            Luteal: "The progesteronre increase in the luteal phase can cause breast tissue to swell and become tender."
+            Luteal: "The progesterone increase in the luteal phase can cause breast tissue to swell and become tender."
         }
     },
 
@@ -318,8 +435,19 @@ export const symptomInfo:Record<string, any> = {
         shoppingList: [
             "Gentle cleanser",
             "Moisturizer",
-            "Acne treatment (benzoyl peroxide or salicylic acid)"
         ],
+        medication: {
+            recommended: [
+                { name: "Benzoyl peroxide wash or gel (2.5–5%)", reason: "Kills acne-causing bacteria and reduces inflammation; lower concentrations are as effective as higher ones with less irritation" },
+                { name: "Salicylic acid cleanser or toner (0.5–2%)", reason: "Unclogs pores and exfoliates inside the follicle; effective for blackheads and comedonal hormonal acne" },
+                { name: "Zinc supplementation (25–30mg elemental zinc)", reason: "Has anti-inflammatory and antibacterial effects; evidence suggests it reduces acne severity, particularly hormonal breakouts" },
+                { name: "Niacinamide serum (topical, 5–10%)", reason: "Reduces sebum production and inflammation; well tolerated and can be layered with most other treatments" },
+            ],
+            avoid: [
+                { name: "High-iodine supplements (e.g. kelp, high-dose iodine)", reason: "Excess iodine can trigger or worsen acne in susceptible individuals" },
+                { name: "Vitamin B12 supplements (high dose, if acne-prone)", reason: "High-dose B12 can alter skin bacteria and trigger breakouts in some people — monitor skin response" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "The hormonal imbalance in menstruation can trigger breakouts.",
             Follicular: "Skin may start to clear up as hormone levels stabilize after menstruation.",
@@ -334,13 +462,23 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Eat small, frequent meals to help manage nausea and avoid an empty stomach.",
             "Ginger tea or ginger supplements may help alleviate nausea for some individuals.",
-            "Stay hydrated and consider using over-the-counter anti-nausea medications if necessary. If nausea is severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Stay hydrated and consider using over-the-counter anti-nausea medications if necessary. If nausea is severe or persistent, consult a healthcare professional.",
         ],
         shoppingList: [
             "Ginger tea",
-            "Anti-nausea medications",
-            "Hydrating beverages"
+            "Hydrating beverages",
+            "Plain crackers",
         ],
+        medication: {
+            recommended: [
+                { name: "Ginger capsules (250mg, up to 4x daily)", reason: "Well-evidenced antiemetic; as effective as some prescription antiemetics for mild-moderate nausea with no significant side effects" },
+                { name: "Cyclizine (e.g. Valoid, 50mg, OTC in UK)", reason: "Antihistamine-type antiemetic; effective for nausea associated with hormonal changes" },
+                { name: "Promethazine (e.g. Phenergan, 25mg)", reason: "Stronger OTC antiemetic suitable for more significant nausea; causes drowsiness — useful if nausea is disrupting sleep" },
+            ],
+            avoid: [
+                { name: "Aspirin or ibuprofen on an empty stomach", reason: "NSAIDs can irritate the stomach lining and worsen nausea — always take with food" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Hormones and cramps can contribute to nausea during menstruation.",
             Follicular: "It's less common in the follicular phase, however, some individuals may still experience nausea due to hormonal fluctuations.",
@@ -355,13 +493,21 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Gentle stretching and low-impact exercises, such as yoga or swimming, may help alleviate joint pain for some individuals.",
             "Omega-3 fatty acids, found in fish oil supplements, may help reduce inflammation and joint pain.",
-            "Over-the-counter pain relievers, such as ibuprofen, can be effective for managing joint pain. If joint pain is severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Over-the-counter pain relievers, such as Ibuprofen, can be effective for managing joint pain. If joint pain is severe or persistent, consult a healthcare professional.",
         ],
         shoppingList: [
-            "Omega-3 supplements",
-            "Ibuprofen",
-            "Epsom salt"
+            "Epsom salt bath",
         ],
+        medication: {
+            recommended: [
+                { name: "Ibuprofen (e.g. Nurofen, 400mg with food)", reason: "Reduces joint inflammation associated with hormonal fluctuations; most effective when taken consistently during symptomatic days" },
+                { name: "Omega-3 fatty acids (e.g. Nordic Naturals, 2g EPA/DHA daily)", reason: "Long-term anti-inflammatory effect; reduces cytokine-driven joint inflammation — most benefit seen after 6–8 weeks of consistent use" },
+                { name: "Turmeric / Curcumin (e.g. Solgar Full Spectrum Curcumin)", reason: "Anti-inflammatory; bioavailable formulations have evidence for reducing joint discomfort" },
+            ],
+            avoid: [
+                { name: "Prolonged NSAID use without food", reason: "Regular ibuprofen or naproxen without food can cause gastric irritation and is not recommended for more than a few consecutive days" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "The inflammation associated with menstruation can sometimes lead to joint pain.",
             Follicular: "As hormones stabilize after menstruation, joint pain may improve for some individuals.",
@@ -375,16 +521,21 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Ovulation",
         tips: [
             "Applying heat to the lower abdomen can help relieve ovulation pain.",
-            "Ovulatory pain is usually temporary and may resolve on its own within a day or two. If the pain is severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Ovulatory pain is usually temporary and may resolve on its own within a day or two. If the pain is severe or persistent, consult a healthcare professional.",
             "Consider tracking your ovulation pain in a symptom diary to identify patterns and better understand your cycle.",
         ],
         shoppingList: [
             "Warm compress",
-            "Pain relievers",
-            "Hydrating beverages"
+            "Hydrating beverages",
         ],
+        medication: {
+            recommended: [
+                { name: "Ibuprofen (400mg as needed)", reason: "Reduces prostaglandin-driven discomfort from follicle rupture; take with food" },
+                { name: "Paracetamol (500–1000mg as needed)", reason: "Good first option for mild ovulation pain; fewer GI side effects than NSAIDs" },
+            ],
+        },
         phaseReasons: {
-            Menstrual: "It's not present during menstuation and is more likely to be confused with menstrual cramps.",
+            Menstrual: "It's not present during menstruation and is more likely to be confused with menstrual cramps.",
             Follicular: "Developing follicles can cause mild discomfort, but true ovulation pain is typically associated with the release of the egg.",
             Ovulation: "Releasing an egg can cause mild to moderate pain due to the follicle rupturing and hormonal changes.",
             Luteal: "After ovulation, the pain usually subsides, but some individuals may still experience mild discomfort as the body adjusts to hormonal changes."
@@ -397,18 +548,29 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Establish a consistent sleep schedule by going to bed and waking up at the same time each day.",
             "Create a relaxing bedtime routine, such as reading or taking a warm bath, to signal to your body that it's time to sleep.",
-            "Limit exposure to screens and bright lights before bedtime, as they can interfere with your body's natural sleep-wake cycle. If insomnia persists, consider consulting a healthcare professional for further evaluation and treatment options.",
+            "Limit exposure to screens and bright lights before bedtime. If insomnia persists, consider consulting a healthcare professional.",
         ],
         shoppingList: [
-            "Herbal tea",
-            "Caffine-free beverages",
-            "Sleep aids (consult a healthcare professional before use)"
+            "Herbal tea (e.g. chamomile, valerian)",
+            "Caffeine-free beverages",
         ],
+        medication: {
+            recommended: [
+                { name: "Melatonin (e.g. Circadin 2mg, or low-dose 0.5mg OTC)", reason: "Helps reset the sleep–wake cycle during luteal-phase sleep disruption; low doses (0.5–1mg) are often as effective as higher ones with fewer side effects" },
+                { name: "Magnesium glycinate (400mg before bed)", reason: "Has a natural sedative effect via GABA receptor activity; one of the best-evidenced non-prescription sleep aids" },
+                { name: "Valerian root extract (300–600mg)", reason: "May reduce time to fall asleep and improve sleep quality; effect builds over 2–4 weeks of consistent use" },
+                { name: "L-theanine (200mg)", reason: "Amino acid from tea that promotes relaxed alertness and improves sleep quality without causing drowsiness the next day" },
+            ],
+            avoid: [
+                { name: "Diphenhydramine sleep aids (e.g. Nytol, Sominex) used nightly", reason: "Antihistamine-based sleep aids cause tolerance rapidly and can cause next-day grogginess; not suitable for regular use" },
+                { name: "Alcohol as a sleep aid", reason: "Disrupts REM sleep and worsens sleep quality in the second half of the night, despite helping you fall asleep initially" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Discomfort from cramps and hormonal fluctuations can contribute to insomnia during menstruation.",
             Follicular: "Insomnia is less common during the follicular phase, but some individuals may still experience sleep disturbances due to hormonal changes.",
-            Ovulation: "The higher energy levels of ovulation, casued by increased hormone production, can sometimes interfere with sleep.",
-            Luteal: "Progestrone can cause drowsiness, but the drop in progesterone and estrogen levels in the late luteal phase can lead to insomnia and sleep disturbances."
+            Ovulation: "The higher energy levels of ovulation, caused by increased hormone production, can sometimes interfere with sleep.",
+            Luteal: "Progesterone can cause drowsiness, but the drop in progesterone and estrogen levels in the late luteal phase can lead to insomnia and sleep disturbances."
         }
     },
 
@@ -418,18 +580,27 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Limit intake of salty foods, as they can contribute to water retention and bloating.",
             "Engage in regular physical activity, as it can help reduce bloating and improve digestion.",
-            "Drink plenty of water to help flush out excess sodium and reduce bloating. If bloating is severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Drink plenty of water to help flush out excess sodium and reduce bloating.",
         ],
         shoppingList: [
             "Low-salt foods",
             "Hydrating beverages",
-            "Digestive aids"
         ],
+        medication: {
+            recommended: [
+                { name: "Magnesium glycinate (300–400mg)", reason: "Reduces water retention and bloating in the luteal phase; also helps with associated cramping" },
+                { name: "Simethicone (e.g. Wind-eze, Deflatine)", reason: "Breaks up gas bubbles in the gut — fast-acting relief for gas-related bloating" },
+                { name: "Peppermint oil capsules (e.g. Colpermin)", reason: "Antispasmodic; relaxes the intestinal muscles and relieves gas and bloating, especially when digestion is slowed by progesterone" },
+            ],
+            avoid: [
+                { name: "Excess sodium / salty snacks", reason: "Increases water retention significantly in the luteal phase when hormones already promote fluid retention" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Inflammation and hormonal changes during menstruation can contribute to bloating.",
             Follicular: "Digestion tends to improve, but some individuals may still experience bloating as the body adjusts after menstruation.",
             Ovulation: "Mild bloating can occur during ovulation due to hormonal changes, but it's typically less intense than in the luteal phase.",
-            Luteal: "Progesterone can slow digestion as relaxes the muscles of the digestive track which reduces the speed at which food moves through the digestive system, leading to increased water retention and bloating."
+            Luteal: "Progesterone can slow digestion as it relaxes the muscles of the digestive tract, leading to increased water retention and bloating."
         }
     },
 
@@ -438,14 +609,20 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Luteal phase",
         tips: [
             "Avoid foods that are known to cause gas, such as beans, lentils, carbonated drinks, and certain vegetables like broccoli and cabbage.",
-            "Eat slowly and chew your food thoroughly to reduce the amount of air you swallow, which can contribute to gas.",
-            "Light walking after meals can help stimulate digestion and reduce gas. If gas is severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Eat slowly and chew your food thoroughly to reduce the amount of air you swallow.",
+            "Light walking after meals can help stimulate digestion and reduce gas.",
         ],
-        shoppingList: [
-            "Gas relief medications",
-            "Digestive aids",
-            "Probiotics"
-        ],
+        shoppingList: null,
+        medication: {
+            recommended: [
+                { name: "Simethicone (e.g. Wind-eze, Deflatine)", reason: "Physically breaks up trapped gas bubbles in the intestine — fast, targeted relief with no systemic absorption" },
+                { name: "Activated charcoal capsules (taken away from medications)", reason: "Absorbs gas in the gut; take 1–2 hours after food, not alongside other medications or supplements" },
+                { name: "Digestive enzyme supplements (e.g. containing alpha-galactosidase)", reason: "Help break down complex carbohydrates that ferment in the gut and cause gas, particularly from beans and cruciferous vegetables" },
+            ],
+            avoid: [
+                { name: "Lactulose (unless treating constipation)", reason: "Is fermented by gut bacteria and produces gas — not suitable if gas is the primary symptom" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Hormonal changes during menstruation can affect digestion and contribute to gas.",
             Follicular: "Digestion tends to improve, but some individuals may still experience gas as the body adjusts after menstruation.",
@@ -454,24 +631,33 @@ export const symptomInfo:Record<string, any> = {
         }
     },
 
-    "Diarrhea": {
+    "Diarrhoea": {
         description: "Experiencing loose, watery stools that may occur more frequently than usual.",
         typicalCyclePhase: "Menstrual phase",
         tips: [
             "Stay hydrated by drinking plenty of fluids, such as water and electrolyte solutions, to prevent dehydration.",
             "Avoid foods that can irritate the digestive system, such as spicy foods, caffeine, and dairy products.",
-            "Consider eating bland, easy-to-digest foods like bananas, rice, applesauce, and toast (the BRAT diet) until symptoms improve. If diarrhea is severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Consider eating bland, easy-to-digest foods like bananas, rice, applesauce, and toast (the BRAT diet) until symptoms improve.",
         ],
         shoppingList: [
-            "Oral rehydration solutions",
             "BRAT diet foods (bananas, rice, applesauce, toast)",
-            "Electrolyte drinks"
         ],
+        medication: {
+            recommended: [
+                { name: "Loperamide (e.g. Imodium, 2mg)", reason: "Slows gut motility; effective for managing prostaglandin-driven diarrhoea during menstruation — take at first loose stool" },
+                { name: "Oral rehydration salts (e.g. Dioralyte)", reason: "Replaces electrolytes lost through diarrhoea — important for preventing dehydration, especially with heavy bleeding at the same time" },
+                { name: "Probiotics (e.g. Symprove, Optibac)", reason: "Regular use may improve gut resilience and reduce hormonally-triggered GI symptoms over time" },
+            ],
+            avoid: [
+                { name: "Ibuprofen or NSAIDs on an irritated gut", reason: "Can aggravate GI inflammation during diarrhoea episodes — use paracetamol instead for pain if needed" },
+                { name: "Milk of magnesia or osmotic laxatives", reason: "Will worsen diarrhoea significantly — avoid during acute episodes" },
+            ]
+        },
         phaseReasons: {
-            Menstrual: "Prostaglandins released during menstruation can stimulate the intestines, leading to diarrhea for some individuals.",
-            Follicular: "At the beginning of the follicular phase, digestion may still be affected by hormonal changes, but diarrhea is less common than during menstruation.",
-            Ovulation: "Mild diarrhea can occur during ovulation due to hormonal changes, but it's typically less intense than in the luteal phase.",
-            Luteal: "As progesterone peaks and then drops, and prostaglandins rise, these hormonal shifts can lead to gastrointestinal issues, including diarrhea."
+            Menstrual: "Prostaglandins released during menstruation can stimulate the intestines, leading to diarrhoea for some individuals.",
+            Follicular: "At the beginning of the follicular phase, digestion may still be affected by hormonal changes, but diarrhoea is less common than during menstruation.",
+            Ovulation: "Mild diarrhoea can occur during ovulation due to hormonal changes, but it's typically less intense than in the menstrual phase.",
+            Luteal: "As progesterone peaks and then drops, and prostaglandins rise, these hormonal shifts can lead to gastrointestinal issues, including diarrhoea."
         }
     },
 
@@ -479,17 +665,29 @@ export const symptomInfo:Record<string, any> = {
         description: "Difficulty passing stools or infrequent bowel movements, often accompanied by hard or dry stools.",
         typicalCyclePhase: "Luteal phase",
         tips: [
-            "Increase your intake of dietary fiber by consuming more fruits, vegetables, whole grains, and legumes.",
+            "Increase your intake of dietary fibre by consuming more fruits, vegetables, whole grains, and legumes.",
             "Drink plenty of water to help soften stools and promote regular bowel movements.",
-            "Engage in regular physical activity, as it can help stimulate digestion and alleviate constipation. If constipation is severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Engage in regular physical activity, as it can help stimulate digestion and alleviate constipation.",
         ],
         shoppingList: [
             "Fruits and vegetables",
             "Whole grain-based foods",
-            "Legumes"
+            "Legumes",
         ],
+        medication: {
+            recommended: [
+                { name: "Magnesium citrate (300mg in water, evening)", reason: "Gentle osmotic laxative effect; draws water into the bowel to soften stools — also addresses the underlying magnesium-related muscle relaxation issue in the gut" },
+                { name: "Ispaghula husk (e.g. Fybogel)", reason: "Bulk-forming fibre supplement; taken with plenty of water, it adds bulk and moisture to stools — highly effective and well tolerated" },
+                { name: "Lactulose (15ml once or twice daily)", reason: "Osmotic laxative; softens stools within 24–48 hours — safe for regular short-term use" },
+                { name: "Glycerol suppositories (for acute relief)", reason: "Works locally and quickly within 15–30 minutes when oral laxatives haven't worked fast enough" },
+            ],
+            avoid: [
+                { name: "Stimulant laxatives (e.g. Senna, Dulcolax) used daily", reason: "Regular stimulant laxative use can cause laxative dependency and worsen long-term bowel function — use occasionally only" },
+                { name: "Codeine or opioid-based pain relief", reason: "Significantly worsens constipation; avoid during symptomatic phases unless there is no alternative" },
+            ]
+        },
         phaseReasons: {
-            Menstrual: "Due to hormonal fluctuations, some individuals may experience constipation during menstruation, but it's less common than diarrhea.",
+            Menstrual: "Due to hormonal fluctuations, some individuals may experience constipation during menstruation, but it's less common than diarrhoea.",
             Follicular: "A rise in progesterone can slow down digestion, which may lead to constipation for some individuals during the follicular phase.",
             Ovulation: "As progesterone spikes after ovulation, it can slow digestion and lead to constipation for some individuals.",
             Luteal: "Due to the high levels of progesterone in the luteal phase, digestion can slow down significantly, leading to constipation for many individuals."
@@ -502,7 +700,7 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Eat small, frequent meals that are nutrient-dense to ensure you're getting the necessary nutrients even if your appetite is low.",
             "Focus on foods that are easy to digest and appealing to you, such as smoothies, soups, or yogurt.",
-            "Drink plenty of fluids to stay hydrated, especially if you're not eating as much. If low appetite persists or is accompanied by other concerning symptoms, consult a healthcare professional for further evaluation and treatment options.",
+            "Drink plenty of fluids to stay hydrated, especially if you're not eating as much.",
         ],
         shoppingList: [
             "Smoothies",
@@ -511,9 +709,9 @@ export const symptomInfo:Record<string, any> = {
         ],
         phaseReasons: {
             Menstrual: "Pain and hormones could potentially reduce appetite.",
-            Follicular: "Estrogen increases in the follicualr ahse and estrogen is known to suppress appetite.",
+            Follicular: "Estrogen increases in the follicular phase and estrogen is known to suppress appetite.",
             Ovulation: "Not as common during ovulation, but some individuals may experience a temporary decrease in appetite due to hormonal fluctuations.",
-            Luteal: "Appetite can very widely affected by the hormonal changes in the luteal phase, with some individuals experiencing a decrease in appetite due to progesterone's effects on the digestive system and mood."
+            Luteal: "Appetite can vary widely, affected by the hormonal changes in the luteal phase, with some individuals experiencing a decrease in appetite due to progesterone's effects on the digestive system and mood."
         }
     },
 
@@ -523,17 +721,22 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Focus on consuming nutrient-dense foods that provide essential vitamins and minerals, rather than empty calories.",
             "Practice mindful eating by paying attention to hunger and fullness cues, and try to avoid emotional eating.",
-            "Engage in regular physical activity to help manage increased appetite and maintain a healthy weight. If increased appetite is severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Engage in regular physical activity to help manage increased appetite and maintain a healthy weight.",
         ],
         shoppingList: [
             "Fruits",
             "Vegetables",
             "Whole grain-based snacks",
-            
         ],
+        medication: {
+            recommended: [
+                { name: "Magnesium glycinate (300–400mg)", reason: "May help reduce cravings and appetite spikes linked to low serotonin in the luteal phase" },
+                { name: "Chromium picolinate (200mcg)", reason: "Supports blood sugar regulation; some evidence for reducing carbohydrate cravings in the luteal phase" },
+            ],
+        },
         phaseReasons: {
-            Menstrual: "The body requires more energy to manage menstruation and it",
-            Follicular: "As the follicular phases progresses, rising estrogen levels can suppress appetite, but some individuals may still experience an increase in appetite as the body recovers from menstruation.",
+            Menstrual: "The body requires more energy to manage menstruation.",
+            Follicular: "As the follicular phase progresses, rising estrogen levels can suppress appetite, but some individuals may still experience an increase as the body recovers from menstruation.",
             Ovulation: "Not as common during ovulation, but some individuals may experience a temporary increase in appetite due to hormonal fluctuations.",
             Luteal: "High levels of progesterone can increase appetite and cravings, especially for carbohydrates, as the body prepares for a potential pregnancy."
         }
@@ -544,14 +747,19 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Luteal phase",
         tips: [
             "Allow yourself to enjoy chocolate in moderation, as it can provide a temporary mood boost and satisfy cravings.",
-            "Consider healthier alternatives to chocolate, such as dark chocolate with a high cocoa content, which may provide more nutritional benefits and less sugar.",
-            "A magnesium deficiency can sometimes contribute to chocolate cravings, so consider incorporating magnesium-rich foods like nuts, seeds, and leafy greens into your diet. If chocolate cravings are severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Consider healthier alternatives to chocolate, such as dark chocolate with a high cocoa content.",
+            "A magnesium deficiency can sometimes contribute to chocolate cravings, so consider incorporating magnesium-rich foods like nuts, seeds, and leafy greens into your diet.",
         ],
         shoppingList: [
-            "Dark chocolate",
-            "Magnesium-rich foods",
-            "Low sugar chocolate alternatives"
+            "Dark chocolate (70%+ cocoa)",
+            "Magnesium-rich foods (nuts, seeds, leafy greens)",
         ],
+        medication: {
+            recommended: [
+                { name: "Magnesium glycinate (300–400mg daily)", reason: "Chocolate is naturally high in magnesium — cravings can signal a deficiency; supplementing often reduces the intensity of cravings" },
+                { name: "Chromium picolinate (200mcg)", reason: "May help stabilise blood sugar and reduce carbohydrate and sugar cravings in the luteal phase" },
+            ],
+        },
         phaseReasons: {
             Menstrual: "Cravings for chocolate are common for comfort and energy replenishment.",
             Follicular: "Chocolate cravings are less intense but can still occur as the body recovers from menstruation.",
@@ -566,23 +774,29 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Allow yourself to enjoy salty foods in moderation, but try to choose healthier options like nuts, seeds, or lightly salted popcorn.",
             "Focus on staying hydrated, as sometimes salty cravings can be a sign of dehydration.",
-            "Consider incorporating electrolyte-rich foods, such as fruits, vegetables, and dairy products, into your diet to help balance your electrolyte levels. If salty cravings are severe or persistent, consult a healthcare professional for further evaluation and treatment options.",
+            "Consider incorporating electrolyte-rich foods, such as fruits, vegetables, and dairy products, into your diet.",
         ],
         shoppingList: [
             "Nuts",
             "Seeds",
-            "Lightly salted snacks"
+            "Lightly salted snacks",
         ],
+        medication: {
+            recommended: [
+                { name: "Electrolyte sachets (e.g. Dioralyte, LMNT)", reason: "If cravings are driven by electrolyte imbalance rather than emotional eating, a low-sugar electrolyte drink can satisfy the craving without excess sodium" },
+                { name: "Magnesium glycinate (300–400mg)", reason: "Low magnesium can drive cravings for salty and sweet foods; supplementing often reduces intensity" },
+            ],
+        },
         phaseReasons: {
-            Menstrual: "Salty cravings are common as hormonal shifts can cause increased water retention andfluid balance issues, requiring sodium-heavy snacks.",
-            Follicular: "Salty cravings are less intense here, but can still occur as the body recovers from menstruation and hormonal levels adjust.",
+            Menstrual: "Salty cravings are common as hormonal shifts can cause increased water retention and fluid balance issues.",
+            Follicular: "Salty cravings are less intense here, but can still occur as the body recovers from menstruation.",
             Ovulation: "There are minimal salty cravings during ovulation, but they can still occur due to hormonal fluctuations.",
-            Luteal: "A drop in serotonin levels can prompt cravings for salty foods, which can temporarily boost serotonin levels and improve mood during the luteal phase."
+            Luteal: "A drop in serotonin levels can prompt cravings for salty foods, which can temporarily boost serotonin levels and improve mood."
         }
     },
 
     "Watery": {
-        description: "Thin, watery cervical mucus",
+        description: "Thin, watery cervical mucus.",
         typicalCyclePhase: "Follicular phase",
         tips: [
             "This type of mucus is a sign of fertility, so it can be a good time to try to conceive if that's your goal.",
@@ -599,7 +813,7 @@ export const symptomInfo:Record<string, any> = {
     },
 
     "Egg white": {
-        description: "Clear, stretchy cervical mucus that resembles raw egg whites",
+        description: "Clear, stretchy cervical mucus that resembles raw egg whites.",
         typicalCyclePhase: "Ovulation",
         tips: [
             "This is the most fertile type of cervical mucus, so it's a prime time for conception if that's your goal.",
@@ -610,13 +824,13 @@ export const symptomInfo:Record<string, any> = {
         phaseReasons: {
             Menstrual: "Egg white cervical mucus is not typically present during menstruation, as the body is shedding the uterine lining and hormone levels are low.",
             Follicular: "As estrogen levels increase, egg white cervical mucus may start to appear as the body prepares for ovulation, but it's typically more common in the later follicular phase.",
-            Ovulation: "During ovulation, egg white cervical mucus is at its peak, providing the most favorable conditions for sperm to travel and fertilize an egg.",
+            Ovulation: "During ovulation, egg white cervical mucus is at its peak, providing the most favourable conditions for sperm to travel and fertilize an egg.",
             Luteal: "In the luteal phase, hormone levels change, causing cervical mucus to become thicker and less receptive to sperm."
         }
     },
 
     "Creamy": {
-        description: "Smooth, lotion-like cervical mucus that is usually white or cloudy",
+        description: "Smooth, lotion-like cervical mucus that is usually white or cloudy.",
         typicalCyclePhase: "Follicular phase",
         tips: [
             "This type of mucus is not as fertile as watery or egg white mucus.",
@@ -633,47 +847,58 @@ export const symptomInfo:Record<string, any> = {
     },
 
     "Sticky": {
-        description: "Thick, sticky cervical mucus that is usually white or cloudy",
+        description: "Thick, sticky cervical mucus that is usually white or cloudy.",
         typicalCyclePhase: "Luteal phase",
         tips: [
             "This type of mucus is less fertile, so it's less likely to support conception if that's your goal.",
             "Maintain good hygiene to prevent infections, as sticky mucus can sometimes be associated with increased vaginal discharge.",
-            "If you're trying to avoid pregnancy, be aware that sticky mucus is a sign that fertility is decreasing."
+            "If you're trying to avoid pregnancy, be aware that sticky mucus is a sign that fertility is decreasing.",
         ],
         shoppingList: null,
         phaseReasons: {
-            Menstrual: "Sticky cervial msucus is common right after menstruation, which is a sign of low fertility.",
-            Follicular: "Sticky discharge is very common earlier in the follicular phase, as fertility is low and hormons begin to rise.",
+            Menstrual: "Sticky cervical mucus is common right after menstruation, which is a sign of low fertility.",
+            Follicular: "Sticky discharge is very common earlier in the follicular phase, as fertility is low and hormones begin to rise.",
             Ovulation: "Sticky mucus may still be present during ovulation, but it's typically less abundant than watery or egg white mucus.",
             Luteal: "In the luteal phase, progesterone can cause cervical mucus to become thicker and more sticky, which is less conducive to sperm movement and indicates that fertility is decreasing."
         }
     },
 
     "Clumpy white": {
-        description: "Thick white mucus that resembles cottage cheese",
+        description: "Thick white mucus that resembles cottage cheese.",
         typicalCyclePhase: "Luteal phase",
         tips: [
             "This type of mucus is often a sign of a yeast infection, so consider consulting a healthcare professional for evaluation and treatment if you notice this type of mucus.",
             "Maintain good hygiene and avoid irritants, such as scented products or tight clothing, to help prevent yeast infections.",
-            "Can usually mean a normal hormonal change",
+            "Can usually mean a normal hormonal change.",
         ],
         shoppingList: null,
+        medication: {
+            recommended: [
+                { name: "Clotrimazole pessary (e.g. Canesten 500mg, single dose)", reason: "First-line OTC treatment for vaginal thrush; antifungal inserted directly where needed — effective in 80–90% of cases" },
+                { name: "Clotrimazole cream (e.g. Canesten 2%)", reason: "Treats external itching and irritation alongside internal treatment; apply to the vulva as needed" },
+                { name: "Fluconazole 150mg oral capsule (e.g. Diflucan — OTC in UK)", reason: "Single-dose oral antifungal; effective as the pessary with the convenience of an oral tablet — not suitable in pregnancy" },
+                { name: "Probiotics with Lactobacillus rhamnosus / reuteri (e.g. Optibac for Women)", reason: "Supports restoration of healthy vaginal flora, particularly after antibiotic-related thrush or recurrent episodes" },
+            ],
+            avoid: [
+                { name: "Scented intimate washes or douches", reason: "Disrupt the natural vaginal pH and bacterial balance, making yeast infections more likely to recur" },
+                { name: "Fluconazole in pregnancy", reason: "Oral fluconazole is contraindicated during pregnancy — use topical clotrimazole only and consult a midwife or GP" },
+            ]
+        },
         phaseReasons: {
             Menstrual: "Clumpy white discharge is rare but could be a sign of an infection or hormonal imbalance during menstruation.",
             Follicular: "A possible hormonal imbalance or infection could cause clumpy white discharge during the follicular phase, but it's not typically associated with normal hormonal changes.",
             Ovulation: "Clumpy white discharge is not typically associated with ovulation.",
             Luteal: "In the luteal phase, clumpy white discharge can occur due to the increase in progesterone levels."
         }
-
     },
 
     "Brown": {
-        description: "Brown cervical mucus or discharge",
+        description: "Brown cervical mucus or discharge.",
         typicalCyclePhase: "Menstrual phase",
         tips: [
             "This is often old blood being expelled from the uterus, so it's usually not a cause for concern.",
             "Maintain good hygiene during this time, as brown discharge can sometimes be associated with increased vaginal discharge.",
-            "If you notice a sudden change in the amount or color of your discharge, or if you experience other symptoms like itching or a foul odor, consider consulting a healthcare professional for further evaluation.",
+            "If you notice a sudden change in the amount or color of your discharge, or if you experience other symptoms like itching or a foul odour, consider consulting a healthcare professional.",
         ],
         shoppingList: null,
         phaseReasons: {
@@ -685,7 +910,7 @@ export const symptomInfo:Record<string, any> = {
     },
 
     "Pink": {
-        description: "Pink cervical mucus or discharge",
+        description: "Pink cervical mucus or discharge.",
         typicalCyclePhase: "Ovulation or spotting",
         tips: [
             "Pink mucus can sometimes be a sign of ovulation, so it can be a good time to try to conceive if that's your goal.",
@@ -702,7 +927,7 @@ export const symptomInfo:Record<string, any> = {
     },
 
     "High": {
-        description: "High energy levels, feeling lively and active",
+        description: "High energy levels, feeling lively and active.",
         typicalCyclePhase: "Ovulation",
         tips: [
             "This is a great time to engage in physical activities that you enjoy, such as working out or outdoor activities.",
@@ -711,7 +936,7 @@ export const symptomInfo:Record<string, any> = {
         ],
         shoppingList: null,
         phaseReasons: {
-            Menstrual: "Energy may begin to return after rest",
+            Menstrual: "Energy may begin to return after rest.",
             Follicular: "The rise in estrogen can boost energy levels and improve mood, leading to feelings of being energized.",
             Ovulation: "This is the peak of energy due to high estrogen levels, which can enhance mood and increase feelings of vitality.",
             Luteal: "In the early luteal phase, you may still feel some of the energizing effects of estrogen before progesterone levels rise and potentially cause fatigue."
@@ -719,7 +944,7 @@ export const symptomInfo:Record<string, any> = {
     },
 
     "Medium": {
-        description: "Moderate energy levels, feeling somewhat active but not overly energetic",
+        description: "Moderate energy levels, feeling somewhat active but not overly energetic.",
         typicalCyclePhase: "Follicular phase",
         tips: [
             "This is a good time to focus on tasks that require moderate energy and concentration.",
@@ -729,15 +954,14 @@ export const symptomInfo:Record<string, any> = {
         shoppingList: null,
         phaseReasons: {
             Menstrual: "As the body recovers from menstruation, energy levels may start to improve, but they may still be moderate due to lingering fatigue and hormonal fluctuations.",
-            Follicular: "The rise in estrogen can boost energy levels and improve mood, leading to feelings of being energized, so a moderate energy level is common during this phase as the body adjusts after menstruation.",
-            Ovulation: "TEven though energy levels tend to be high, some individuals may experience moderate energy levels during ovulation due to hormonal fluctuations and individual differences in how they respond to these changes.",
+            Follicular: "The rise in estrogen can boost energy levels and improve mood; a moderate energy level is common during this phase as the body adjusts after menstruation.",
+            Ovulation: "Even though energy levels tend to be high, some individuals may experience moderate energy levels during ovulation due to hormonal fluctuations.",
             Luteal: "In the early luteal phase, you may still feel some of the energizing effects of estrogen before progesterone levels rise and potentially cause fatigue."
         }
-
     },
 
     "Low": {
-        description: "Low energy levels, feeling tired or fatigued",
+        description: "Low energy levels, feeling tired or fatigued.",
         typicalCyclePhase: "Menstrual phase or Luteal phase",
         tips: [
             "This is a good time to rest and prioritize self-care.",
@@ -746,19 +970,18 @@ export const symptomInfo:Record<string, any> = {
         ],
         shoppingList: [
             "Comfort foods",
-            "Coffee",
-            "Energy drinks (in moderation)"
+            "Coffee (in moderation)",
         ],
         phaseReasons: {
             Menstrual: "Blood loss and low hormone levels during menstruation can contribute to feelings of exhaustion.",
-            Follicular: "The body is recovering from menstruation some individuals may still feel tired, but energy levels typically start to improve as estrogen rises.",
+            Follicular: "The body is recovering from menstruation; some individuals may still feel tired, but energy levels typically start to improve as estrogen rises.",
             Ovulation: "Energy levels can dip after the peak of ovulation due to hormonal fluctuations, but many individuals still feel energized during this phase.",
             Luteal: "Progesterone increase can cause fatigue and lower energy levels, especially in the later luteal phase leading up to menstruation."
         }
     },
 
     "High libido": {
-        description: "Increased sexual desire or interest",
+        description: "Increased sexual desire or interest.",
         typicalCyclePhase: "Ovulation",
         tips: [
             "This is a great time to connect with your partner and explore your sexuality if you feel comfortable doing so.",
@@ -775,7 +998,7 @@ export const symptomInfo:Record<string, any> = {
     },
 
     "Low libido": {
-        description: "Decreased sexual desire or interest",
+        description: "Decreased sexual desire or interest.",
         typicalCyclePhase: "Luteal phase",
         tips: [
             "This is a good time to focus on self-care and maintaining a healthy lifestyle.",
@@ -786,7 +1009,7 @@ export const symptomInfo:Record<string, any> = {
         phaseReasons: {
             Menstrual: "Discomfort due to cramps and other pains in menstruation may reduce sexual desire.",
             Follicular: "At the beginning of the follicular phase, libido may still be low as the body recovers from menstruation, but it typically starts to increase as estrogen levels rise.",
-            Ovulation: "It's less common to have a low libido during ovulation, but some individuals may experience it due to hormonal fluctuations or individual differences in how they respond to these changes.",
+            Ovulation: "It's less common to have a low libido during ovulation, but some individuals may experience it due to hormonal fluctuations or individual differences.",
             Luteal: "Hormonal drops, such as the decrease in estrogen and the increase in progesterone, can lead to a decrease in libido for many individuals during the luteal phase."
         }
     },
@@ -827,7 +1050,6 @@ export const symptomInfo:Record<string, any> = {
         phaseReasons: null
     },
 
-
     "Meditation": {
         description: "Engaging in mindfulness meditation to promote relaxation and mental well-being.",
         typicalCyclePhase: "Any",
@@ -850,7 +1072,6 @@ export const symptomInfo:Record<string, any> = {
         ],
         shoppingList: null,
         phaseReasons: null
-        
     },
 
     "Cardio": {
@@ -864,7 +1085,7 @@ export const symptomInfo:Record<string, any> = {
         shoppingList: null,
         phaseReasons: null
     },
-    
+
     "Yoga": {
         description: "Engaging in yoga practice to promote flexibility, strength, and mental well-being.",
         typicalCyclePhase: "Any",
@@ -890,7 +1111,7 @@ export const symptomInfo:Record<string, any> = {
     },
 
     "Dancing": {
-        decription: "Engaging in dance as a form of physical activity and self-expression.",
+        description: "Engaging in dance as a form of physical activity and self-expression.",
         typicalCyclePhase: "Any",
         tips: [
             "Dancing can be a fun and enjoyable way to stay active, regardless of your cycle phase.",
@@ -925,14 +1146,13 @@ export const symptomInfo:Record<string, any> = {
         phaseReasons: null
     },
 
-
     "Napping": {
         description: "Taking short naps during the day to help recharge and improve alertness.",
         typicalCyclePhase: "Menstrual phase or Luteal phase",
         tips: [
-            "Short naps of 20-30 minutes can help improve mood and energy levels, especially during the menstrual phase or luteal phase when fatigue may be more common.",
+            "Short naps of 20–30 minutes can help improve mood and energy levels, especially during the menstrual phase or luteal phase when fatigue may be more common.",
             "Find a quiet and comfortable space for napping, and try to nap earlier in the day to avoid interfering with nighttime sleep.",
-            "Listen to your body and allow yourself to rest when you need it, without guilt or judgment.",
+            "Listen to your body and allow yourself to rest when you need it, without guilt or judgement.",
         ],
         shoppingList: null,
         phaseReasons: null
@@ -943,7 +1163,7 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Any",
         tips: [
             "Walking can be a great way to stay active and clear your mind, regardless of your cycle phase.",
-            "Consider taking walks in nature or around your neighborhood to enjoy the outdoors and boost your mood.",
+            "Consider taking walks in nature or around your neighbourhood to enjoy the outdoors and boost your mood.",
             "Use walking as a way to connect with friends or family by going for walks together.",
         ],
         shoppingList: null,
@@ -955,7 +1175,7 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Any",
         tips: [
             "If you have a trip planned, try to schedule it during a time when you typically feel more energetic and less symptomatic, such as the follicular phase or ovulation.",
-            "Make sure to stay hydrated, get plenty of rest, and pack any necessary medications or comfort items to help manage symptoms while traveling.",
+            "Make sure to stay hydrated, get plenty of rest, and pack any necessary medications or comfort items to help manage symptoms while travelling.",
             "Consider using travel as an opportunity to relax and recharge, rather than adding stress to your routine.",
         ],
         shoppingList: null,
@@ -975,7 +1195,7 @@ export const symptomInfo:Record<string, any> = {
             Menstrual: "Illness can exacerbate symptoms during menstruation, such as fatigue and cramps.",
             Follicular: "Immunity tends to be stronger during the follicular phase, but illness can still impact energy levels and overall well-being.",
             Ovulation: "Hormonal changes during ovulation may affect how your body responds to illness, potentially leading to increased symptoms.",
-            Luteal: "The luteal phase can sometimes be associated with a weakened immune response, making it more likely for illness to impact your symptoms and energy levels during this time."
+            Luteal: "The luteal phase can sometimes be associated with a weakened immune response, making it more likely for illness to impact your symptoms and energy levels."
         }
     },
 
@@ -985,14 +1205,14 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Practice stress-management techniques, such as deep breathing exercises, meditation, or yoga, to help reduce stress levels.",
             "Engage in activities that bring you joy and help you relax, such as hobbies, spending time with loved ones, or being in nature.",
-            "Consider seeking support from a trusted friend, counselor, or therapist if you're feeling overwhelmed by stress.", 
+            "Consider seeking support from a trusted friend, counsellor, or therapist if you're feeling overwhelmed by stress.",
         ],
         shoppingList: null,
         phaseReasons: {
             Menstrual: "Stress can exacerbate symptoms during menstruation, such as cramps and fatigue.",
             Follicular: "While the follicular phase can be a time of increased energy, stress can still impact your mood and overall well-being during this phase.",
             Ovulation: "The increased social energy during ovulation may increase pressure.",
-            Luteal: "The luteal phase can sometimes be associated with increased sensitivity to stress due to hormonal fluctuations, which may exacerbate symptoms and impact overall well-being during this time."
+            Luteal: "The luteal phase can sometimes be associated with increased sensitivity to stress due to hormonal fluctuations, which may exacerbate symptoms and impact overall well-being."
         }
     },
 
@@ -1002,7 +1222,7 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "Establish a consistent sleep schedule by going to bed and waking up at the same time each day.",
             "Create a relaxing bedtime routine, such as reading or taking a warm bath, to signal to your body that it's time to sleep.",
-            "Limit exposure to screens and bright lights before bedtime, as they can interfere with your body's natural sleep-wake cycle. If sleep disruption persists, consider consulting a healthcare professional for further evaluation and treatment options.",
+            "Limit exposure to screens and bright lights before bedtime, as they can interfere with your body's natural sleep-wake cycle.",
         ],
         shoppingList: null,
         phaseReasons: null
@@ -1014,7 +1234,7 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "If you're experiencing changes in symptoms due to medication changes, it's important to communicate with your healthcare provider about any concerns or side effects you're experiencing.",
             "Make sure to follow your healthcare provider's instructions regarding medication use, and don't hesitate to ask questions or seek clarification if you're unsure about anything.",
-            "Consider keeping a symptom diary to track any changes in symptoms or side effects related to medication changes, which can help you and your healthcare provider make informed decisions about your treatment plan.",
+            "Consider keeping a symptom diary to track any changes in symptoms or side effects related to medication changes.",
         ],
         shoppingList: null,
         phaseReasons: null
@@ -1024,7 +1244,7 @@ export const symptomInfo:Record<string, any> = {
         description: "No birth control method used.",
         typicalCyclePhase: "Any",
         tips: [
-            "If you're not using any birth control method, it's important to be aware of your fertility and take appropriate precautions if you're trying to avoid pregnancy.", 
+            "If you're not using any birth control method, it's important to be aware of your fertility and take appropriate precautions if you're trying to avoid pregnancy.",
             "Consider tracking your menstrual cycle and fertility signs to better understand your reproductive health and make informed decisions about family planning.",
             "Focus on maintaining a healthy lifestyle, including regular exercise and a balanced diet, to support your overall well-being and reproductive health.",
         ],
@@ -1055,7 +1275,6 @@ export const symptomInfo:Record<string, any> = {
         shoppingList: null,
         phaseReasons: null
     },
-   
 
     "IUD": {
         description: "Using an intrauterine device (IUD) for long-term contraception.",
@@ -1063,7 +1282,7 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "If you have an IUD, it's important to check the strings regularly to ensure that the device is in place and functioning properly.",
             "Be aware of potential side effects of IUDs, such as changes in menstrual bleeding or cramping, and communicate with your healthcare provider if you have any concerns.",
-            "Consider scheduling regular check-ups with your healthcare provider to ensure that your IUD is still in place and to address any questions or concerns you may have about your contraceptive method.",
+            "Consider scheduling regular check-ups with your healthcare provider to ensure that your IUD is still in place and to address any questions or concerns.",
         ],
         shoppingList: null,
         phaseReasons: null
@@ -1074,7 +1293,7 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Any",
         tips: [
             "If you have a contraceptive implant, it's important to be aware of potential side effects, such as changes in menstrual bleeding or mood, and communicate with your healthcare provider if you have any concerns.",
-            "Consider scheduling regular check-ups with your healthcare provider to ensure that your implant is still in place and to address any questions or concerns you may have about your contraceptive method.",
+            "Consider scheduling regular check-ups with your healthcare provider to ensure that your implant is still in place and to address any questions or concerns.",
             "If you're considering getting a contraceptive implant, make sure to discuss the benefits and potential side effects with your healthcare provider to determine if it's the right choice for you.",
         ],
         shoppingList: null,
@@ -1087,7 +1306,7 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "If you're using a contraceptive injection, make sure to receive the injection on schedule, as recommended by your healthcare provider, to ensure its effectiveness.",
             "Be aware of potential side effects of contraceptive injections, such as changes in menstrual bleeding or mood, and communicate with your healthcare provider if you have any concerns.",
-            "Consider scheduling regular check-ups with your healthcare provider to address any questions or concerns you may have about your contraceptive method.",
+            "Consider scheduling regular check-ups with your healthcare provider to address any questions or concerns.",
         ],
         shoppingList: null,
         phaseReasons: null
@@ -1099,7 +1318,7 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "If you're using a contraceptive patch, make sure to apply it to clean, dry skin on the upper arm, torso, or buttocks, and follow the schedule recommended by your healthcare provider for changing the patch.",
             "Be aware of potential side effects of contraceptive patches, such as skin irritation or changes in menstrual bleeding, and communicate with your healthcare provider if you have any concerns.",
-            "Consider scheduling regular check-ups with your healthcare provider to address any questions or concerns you may have about your contraceptive method.",
+            "Consider scheduling regular check-ups with your healthcare provider to address any questions or concerns.",
         ],
         shoppingList: null,
         phaseReasons: null
@@ -1111,7 +1330,7 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "If you're using a contraceptive vaginal ring, make sure to insert it correctly and follow the schedule recommended by your healthcare provider for changing the ring.",
             "Be aware of potential side effects of contraceptive vaginal rings, such as vaginal irritation or changes in menstrual bleeding, and communicate with your healthcare provider if you have any concerns.",
-            "Consider scheduling regular check-ups with your healthcare provider to address any questions or concerns you may have about your contraceptive method.",
+            "Consider scheduling regular check-ups with your healthcare provider to address any questions or concerns.",
         ],
         shoppingList: null,
         phaseReasons: null
@@ -1135,7 +1354,7 @@ export const symptomInfo:Record<string, any> = {
         tips: [
             "If you're using a contraceptive method that isn't listed here, make sure to follow the instructions provided by your healthcare provider or the manufacturer to ensure its effectiveness.",
             "Be aware of potential side effects of your chosen contraceptive method, and communicate with your healthcare provider if you have any concerns or experience any adverse effects.",
-            "Consider scheduling regular check-ups with your healthcare provider to address any questions or concerns you may have about your contraceptive method and to ensure that it's still the right choice for you.",
+            "Consider scheduling regular check-ups with your healthcare provider to address any questions or concerns and to ensure that it's still the right choice for you.",
         ],
         shoppingList: null,
         phaseReasons: null
@@ -1247,7 +1466,6 @@ export const symptomInfo:Record<string, any> = {
         ],
         shoppingList: null,
         phaseReasons: null
-
     },
 
     "Vitamins": {
@@ -1278,7 +1496,7 @@ export const symptomInfo:Record<string, any> = {
         description: "Taking zinc supplements to support immune function and overall health during the menstrual cycle.",
         typicalCyclePhase: "Any",
         tips: [
-            "If you're taking zinc supplements, make sure to follow the instructions provided by your healthcare provider or the supplement label to ensure safe and effective use.",   
+            "If you're taking zinc supplements, make sure to follow the instructions provided by your healthcare provider or the supplement label to ensure safe and effective use.",
             "Zinc can help support immune function and overall health during the menstrual cycle.",
             "If you have any questions or concerns about taking zinc supplements or if you experience any adverse effects, don't hesitate to contact your healthcare provider for guidance and support.",
         ],
@@ -1287,11 +1505,11 @@ export const symptomInfo:Record<string, any> = {
     },
 
     "Iron": {
-        description: "Taking iron supplements to help manage symptoms of anemia or heavy menstrual bleeding during the menstrual cycle.",
+        description: "Taking iron supplements to help manage symptoms of anaemia or heavy menstrual bleeding during the menstrual cycle.",
         typicalCyclePhase: "Any",
         tips: [
             "If you're taking iron supplements, make sure to follow the instructions provided by your healthcare provider or the supplement label to ensure safe and effective use.",
-            "Iron can help manage symptoms of anemia or heavy menstrual bleeding that may occur during the menstrual cycle.",
+            "Iron can help manage symptoms of anaemia or heavy menstrual bleeding that may occur during the menstrual cycle.",
             "If you have any questions or concerns about taking iron supplements or if you experience any adverse effects, don't hesitate to contact your healthcare provider for guidance and support.",
         ],
         shoppingList: null,
@@ -1315,7 +1533,7 @@ export const symptomInfo:Record<string, any> = {
         typicalCyclePhase: "Any",
         tips: [
             "If you're taking probiotic supplements, make sure to follow the instructions provided by your healthcare provider or the supplement label to ensure safe and effective use.",
-            "Probiotics can help support gut health and overall well-being during the menstrual cycle.",    
+            "Probiotics can help support gut health and overall well-being during the menstrual cycle.",
             "If you have any questions or concerns about taking probiotic supplements or if you experience any adverse effects, don't hesitate to contact your healthcare provider for guidance and support.",
         ],
         shoppingList: null,
@@ -1341,21 +1559,20 @@ export const symptomInfo:Record<string, any> = {
             "If you're using protein powder supplements, make sure to follow the instructions provided by your healthcare provider or the supplement label to ensure safe and effective use.",
             "Protein powder can help support muscle recovery and overall health during the menstrual cycle, especially if you're engaging in regular exercise.",
             "If you have any questions or concerns about using protein powder supplements or if you experience any adverse effects, don't hesitate to contact your healthcare provider for guidance and support.",
-        ], 
+        ],
         shoppingList: null,
         phaseReasons: null
     },
 
-    "Fiber Supplements": {
-        description: "Using fiber supplements to support digestive health and overall well-being during the menstrual cycle.",
+    "Fibre Supplements": {
+        description: "Using fibre supplements to support digestive health and overall well-being during the menstrual cycle.",
         typicalCyclePhase: "Any",
         tips: [
-            "If you're using fiber supplements, make sure to follow the instructions provided by your healthcare provider or the supplement label to ensure safe and effective use.",
-            "Fiber supplements can help support digestive health and overall well-being during the menstrual cycle, especially if you're experiencing digestive symptoms such as bloating or constipation.",
-            "If you have any questions or concerns about using fiber supplements or if you experience any adverse effects, don't hesitate to contact your healthcare provider for guidance and support.",
+            "If you're using fibre supplements, make sure to follow the instructions provided by your healthcare provider or the supplement label to ensure safe and effective use.",
+            "Fibre supplements can help support digestive health and overall well-being during the menstrual cycle, especially if you're experiencing digestive symptoms such as bloating or constipation.",
+            "If you have any questions or concerns about using fibre supplements or if you experience any adverse effects, don't hesitate to contact your healthcare provider for guidance and support.",
         ],
         shoppingList: null,
         phaseReasons: null
     }
-
 };

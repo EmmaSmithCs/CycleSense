@@ -5,7 +5,7 @@
     
     It includes: 
     - A greeting message that changes based on the time of day and includes the user's name.
-    - A date selection strip that allows the user to select a date to view or log symptoms for, showing a horizontal list of dates centered around today.
+    - A date selection strip that allows the user to select a date to view or log symptoms for, showing a horizontal list of dates centred around today.
     - A profile avatar that displays the user's initials and allows navigation to the profile screen.
     - A modal for logging symptoms and bleeding for the selected date, which includes options for different symptom categories, intensity levels for certain symptoms, and a notes section.
     - Integration with gamification features to show streaks and badges based on the user's logging activity.
@@ -101,7 +101,7 @@ const symptomCategories = [
 
     // Cycle disruption category for tracking factors that may disrupt the menstrual cycle
     {
-        key: "distuption",
+        key: "disruption",
         title: "Cycle disruption",
         options: ["Travel", "Illness", "Stress", "Sleep disruption", "Medication change"],
     },
@@ -124,7 +124,7 @@ const symptomCategories = [
     {
         key: "supplements",
         title: "Supplements",
-        options: ["Vitamins", "Magnesium", "Zinc", "Iron", "Omega 3", "Probiotics", "Adaptogens", "Protein powder", "Fiber supplements"],
+        options: ["Vitamins", "Magnesium", "Zinc", "Iron", "Omega 3", "Probiotics", "Adaptogens", "Protein powder", "Fibre supplements"],
     },
 ];
 
@@ -172,6 +172,7 @@ export default function DailyTrackingScreen() {
     const [selectedIntensity, setSelectedIntensity] = useState<number>(3);
     const [cycleDataLoadedOnce, setCycleDataLoadedOnce] = useState(false);
     const [hasLoggedToday, setHasLoggedToday] = useState(false);
+    const [haveEverManuallyLogged, sethHaveEverManuallyLogged] = useState(false);
 
     // Function to get a greeting message based on the current time of day
     const getGreeting = () => {
@@ -218,7 +219,7 @@ export default function DailyTrackingScreen() {
 
 
 
-    // Create a date range of 7 days centered around today for the date selection buttons
+    // Create a date range of 7 days centred around today for the date selection buttons
     const dateRange = Array.from({ length: 7 }, (_, i) => addDays(getToday, i - 3));
 
     // Function to toggle a symptom in the symptoms state array when the user selects or deselects it in the log modal
@@ -250,6 +251,13 @@ export default function DailyTrackingScreen() {
             symptoms: doc.data().symptoms || [],
             notes: doc.data().notes || "",
         }));
+
+        // Set if user has ever manually logged
+        const hasManualLog = logs.some(l =>
+            (l.symptoms && l.symptoms.length > 0) ||
+            (l.notes && l.notes.trim().length > 0)
+        );
+        sethHaveEverManuallyLogged(hasManualLog);
 
         // Build cycles from logs and calculate cycle progress and next period prediction
         const cycles = buildCycles(logs);
@@ -449,7 +457,7 @@ export default function DailyTrackingScreen() {
                 </TouchableOpacity>
             </View>
 
-            {/* Date selection strip that allows the user to select a date to view or log symptoms for, showing a horizontal list of dates centered around today */ }
+            {/* Date selection strip that allows the user to select a date to view or log symptoms for, showing a horizontal list of dates centred around today */ }
             <FlatList
                 horizontal
                 style={{ maxHeight: 110 }}
@@ -533,6 +541,38 @@ export default function DailyTrackingScreen() {
             >
                 <Text style={{ color: "#fff", fontSize: 28 }}>+</Text>
             </TouchableOpacity>
+
+            {/* First time hint */}
+            {!haveEverManuallyLogged && !modalVisible && (
+                <View style={{
+                    position: "absolute",
+                    bottom: 100,
+                    right: 16,
+                    alignItems: "flex-end",
+                    pointerEvents: "none"
+                }}>
+                    <View style={{
+                        backgroundColor: c.primary,
+                        paddingVertical: 8,
+                        paddingHorizontal: 14,
+                        borderRadius: 20,
+                        marginBottom: 6,
+                        shadowColor: "#000",
+                        shadowOffset: { 
+                            width: 0,
+                            height: 2,
+                        },
+                        shadowOpacity: 0.15,
+                        shadowRadius: 6,
+                        elevation: 4,
+                    }}>
+                        <Text style={{ color: "#fff", fontWeight: "700", fontSize: 13 }}>
+                            Tap here to log your first day!
+                        </Text>
+                    </View>
+                    <Text style={{ fontSize: 28, color: c.primary, marginRight: 14}}>↓ </Text>
+                </View>
+            )}
 
             {/* Modal for logging symptoms and bleeding for the selected date, allowing the user to select bleeding level, symptoms with optional intensity, and add notes, with a save button to save the log to Firestore and a cancel button to close the modal without saving */ }
             <Modal visible={modalVisible} animationType="slide" transparent>

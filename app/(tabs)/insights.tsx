@@ -301,6 +301,97 @@ function CycleDayHeatmap({ dayCounts, avgLength, accent }: {
     );
 }
 
+// Expandable medication section 
+function MedicationBlock({ medication, accent} :{
+    medication: { recommended?: { name: string; reason: string } []; avoid?: { name: string; reason: string } [] } | null;
+    accent: string;
+}) {
+    const [open, setOpen] = useState(false);
+    const animation = useRef(new Animated.Value(0)).current;
+
+    if (!medication?.recommended?.length && !medication?.avoid?.length) return
+
+    // Toggle the expansion of the medication section
+    const toggle = (e: any) => {
+        e.stopPropagation();
+        const toValue = open ? 0 : 1;
+        Animated.timing(animation, { toValue, duration: 220, useNativeDriver: false}).start();
+        setOpen(!open);
+    };
+
+    return (
+        <TouchableOpacity
+            onPress={toggle}
+            activeOpacity={0.85}
+            style={{
+                borderWidth: 1,
+                borderColor: accent + "55",
+                borderRadius: 10,
+                overflow: 'hidden',
+                marginTop: 10,
+            }}
+        >
+            <View style={{
+                flexDirection: 'row',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                paddingHorizontal: 12,
+                paddingVertical: 10,
+                backgroundColor: accent + "14",
+            }}>
+                <View style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    gap: 8,
+                }}>
+                    <Text style={{ fontSize: 15}}>
+                        💊
+                    </Text>
+                    <Text style={{ fontSize: 12, color: accent, fontWeight: '700', letterSpacing: 0.5 }}>
+                        Medication options
+                    </Text>
+                </View>
+                <Text style={{ fontSize: 11, color: accent }}>{open ? '▲' : '▼'}</Text>
+            </View>
+
+            <Animated.View style={{
+                maxHeight: animation.interpolate({
+                    inputRange: [0,1],
+                    outputRange: [0, 9999], 
+                }),
+                opacity: animation,
+                overflow: 'hidden',
+            }}>
+                <View style={{ padding: 12, borderTopWidth: 1, borderTopColor: accent + "33" }}>
+                    {(medication.recommended ?? []).length > 0 && (
+                        <>
+                            <Text style={[styles.sectionLabel, { color: accent }]}>Recommended</Text>
+                            {medication.recommended!.map((med, idx) => (
+                                <View key={idx} style={{ marginBottom: 10 }}>
+                                    <Text style={[styles.whyText, { fontWeight: "700" }]}>{med.name}</Text>
+                                    <Text style={[styles.whyText, { color: "#666" }]}>{med.reason}</Text>
+                                </View>
+                            ))}
+                        </>
+                    )}
+                    {(medication.avoid ?? []).length > 0 && (
+                        <>
+                            <View style={{ height: 1, backgroundColor: accent + "33", marginVertical: 8 }} />
+                            <Text style={[styles.sectionLabel, { color: "#c0392b" }]}>Avoid</Text>
+                            {medication.avoid!.map((med, idx) => (
+                                <View key={idx} style={{ marginBottom: 10 }}>
+                                    <Text style={[styles.whyText, { color: "#c0392b", fontWeight: "600" }]}>{med.name}</Text>
+                                    <Text style={[styles.whyText, { color: "#666" }]}>{med.reason}</Text>
+                                </View>
+                            ))}
+                        </>
+                    )}
+                </View>
+            </Animated.View>
+        </TouchableOpacity>
+    )
+}
+
 // Main InsightsScreen component that fetches the user's logs from the database, generates insights based on the logs, and renders them in a list of cards with different styles based on the type of insight
 export default function InsightsScreen() {
     
@@ -404,7 +495,7 @@ export default function InsightsScreen() {
 
             const displayName = (name: string) =>
                 name === "High" ? "High Energy"
-                : name === "Medium" ? "Meidum Energy"
+                : name === "Medium" ? "Medium Energy"
                 : name === "Low" ? "Low Energy"
                 : name;
 
@@ -440,7 +531,7 @@ export default function InsightsScreen() {
                 if (!hasContent) return;
 
                 const displayName = sym.name === "High" ? "High Energy"
-                    : sym.name === "Medium" ? "Meidum Energy"
+                    : sym.name === "Medium" ? "Medium Energy"
                     : sym.name === "Low" ? "Low Energy"
                     : sym.name;
 
@@ -466,6 +557,7 @@ export default function InsightsScreen() {
                         tips: Array.isArray(info.tips) ? info.tips : [],
                         phase: info.typicalCyclePhase ?? "Unknown phase",
                         shoppingList: Array.isArray(info.shoppingList) ? info.shoppingList : [],
+                        medication: info.medication ?? null,
                     }
                 });
             });
@@ -550,6 +642,7 @@ export default function InsightsScreen() {
                             phase: info?.typicalCyclePhase ?? "Unknown phase",
                             shoppingList: Array.isArray(info?.shoppingList) ? info.shoppingList : [],
                             chartData: allOccurrences,
+                            medication: info.medication ?? null,
                         }
                     });
                 }
@@ -691,6 +784,7 @@ export default function InsightsScreen() {
                         shoppingList: Array.isArray(info.shoppingList) ? info.shoppingList : [],
                         dayCounts,
                         avgLength: resolvedAvgLength,
+                        medication: info.medication ?? null,
                     }
                 });
                 console.log("DONE")
@@ -828,6 +922,7 @@ export default function InsightsScreen() {
                                             opacity: animation.interpolate({ inputRange: [0, 0.3], outputRange: [1, 0], extrapolate: "clamp" }),
                                             maxHeight: animation.interpolate({ inputRange: [0, 0.3], outputRange: [20, 0], extrapolate: "clamp" }),
                                             overflow: "hidden",
+                                            width: "100%", 
                                         }}>
                                             {/* Preview of symptoms tracked today, showing up to 4 symptoms with a count of additional symptoms if there are more than 4 */ }
                                             <Text style={[styles.previewText, { color: c.textMuted }]} numberOfLines={1}>
@@ -835,9 +930,10 @@ export default function InsightsScreen() {
                                             </Text>
                                         </Animated.View>
                                         <Animated.View style={{
-                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 500] }),
+                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 9999] }),
                                             overflow: "hidden",
                                             opacity: animation,
+                                            width: "100%", 
                                         }}>
                                             {/* Row of chips showing the symptoms tracked today */ }
                                             <View style={styles.chipsRow}>
@@ -894,9 +990,10 @@ export default function InsightsScreen() {
                                         {/* Description of the current cycle phase */ }
                                         <Text style={[styles.phaseDescription, { color: c.textSecondary }]}>{item.message}</Text>
                                         <Animated.View style={{
-                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 300] }),
+                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 9999] }),
                                             overflow: "hidden",
                                             opacity: animation,
+                                            width: "100%", 
                                         }}>
                                             <View style={[styles.divider, { backgroundColor: config.border }]} /> 
 
@@ -928,7 +1025,8 @@ export default function InsightsScreen() {
                             <TouchableOpacity onPress={() => toggleCard(index)} activeOpacity={0.85}>
                                 <Animated.View style={[
                                     styles.card,
-                                    { backgroundColor: config.bg, borderColor: config.border },
+                                    
+                                    { backgroundColor: config.bg, borderColor: config.border, width: "100%"  },
                                     { transform: [{ scale: animation.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] }) }] }
                                 ]}>
                                     <View style={[styles.leftBar, { backgroundColor: config.accent }]} />
@@ -949,9 +1047,10 @@ export default function InsightsScreen() {
                                             <Text style={[styles.chevron, { color: config.accent }]}>{isExpanded ? "▲" : "▼"}</Text>
                                         </View>
                                         <Animated.View style={{
-                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 500] }),
+                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 9999] }),
                                             overflow: "hidden",
                                             opacity: animation,
+                                            width: "100%", 
                                         }}>
                                             <View style={[styles.divider, { backgroundColor: config.border }]} />
 
@@ -982,7 +1081,7 @@ export default function InsightsScreen() {
 
                                             {/* Recommended products related to the symptom, if available */ }
                                             {(item.details?.shoppingList ?? []).length > 0 && (
-                                                <View style={styles.shoppingBlock}>
+                                                <View style={[styles.shoppingBlock, { minWidth: 0 }]}>
                                                     <Text style={[styles.sectionLabel, { color: config.accent }]}>Recommended Products</Text>
                                                     {(item.details.shoppingList as string[]).map((product, idx) => (
                                                         <View key={idx} style={styles.productRow}>
@@ -992,6 +1091,9 @@ export default function InsightsScreen() {
                                                     ))}
                                                 </View>
                                             )}
+
+                                            {/* Medication recommendations */}
+                                            <MedicationBlock medication={item.details?.medication ?? null} accent={config.accent} />
                                         </Animated.View>
                                     </View>
                                 </Animated.View>
@@ -1009,7 +1111,7 @@ export default function InsightsScreen() {
                             <TouchableOpacity onPress={() => toggleCard(index)} activeOpacity={0.85}>
                                 <Animated.View style={[
                                     styles.card,
-                                    { backgroundColor: config.bg, borderColor: config.border },
+                                    { backgroundColor: config.bg, borderColor: config.border, width: "100%" },
                                     { transform: [{ scale: animation.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] }) }] }
                                 ]}>
                                     <View style={[styles.leftBar, { backgroundColor: config.accent }]} />
@@ -1028,9 +1130,10 @@ export default function InsightsScreen() {
                                             <Text style={[styles.chevron, { color: config.accent }]}>{isExpanded ? "▲" : "▼"}</Text>
                                         </View>
                                         <Animated.View style={{
-                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 600] }),
+                                            maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 9999] }),
                                             overflow: "hidden",
                                             opacity: animation,
+                                            width: "100%", 
                                         }}>
                                             <View style={[styles.divider, { backgroundColor: config.border }]} />
 
@@ -1056,7 +1159,7 @@ export default function InsightsScreen() {
 
                                             {/* Recommended products related to the symptom, if available */ }
                                             {(item.details?.shoppingList ?? []).length > 0 && (
-                                                <View style={styles.shoppingBlock}>
+                                                <View style={[styles.shoppingBlock, { minWidth: 0 }]}>
                                                     <Text style={[styles.sectionLabel, { color: config.accent }]}>Recommended Products</Text>
                                                     {(item.details.shoppingList as string[]).map((product, idx) => (
                                                         <View key={idx} style={styles.productRow}>
@@ -1066,6 +1169,9 @@ export default function InsightsScreen() {
                                                     ))}
                                                 </View>
                                             )}
+
+                                            {/* Medication recommendations */}
+                                            <MedicationBlock medication={item.details?.medication ?? null} accent={config.accent} />
                                         </Animated.View>
                                     </View>
                                 </Animated.View>
@@ -1078,7 +1184,7 @@ export default function InsightsScreen() {
                         <TouchableOpacity onPress={() => toggleCard(index)} activeOpacity={0.85}>
                             <Animated.View style={[
                                 styles.card,
-                                { backgroundColor: config.bg, borderColor: config.border },
+                                { backgroundColor: config.bg, borderColor: config.border, width: "100%" },
                                 { transform: [{ scale: animation.interpolate({ inputRange: [0, 1], outputRange: [1, 1.015] }) }] }
                             ]}>
                                 <View style={[styles.leftBar, { backgroundColor: config.accent }]} />
@@ -1099,9 +1205,10 @@ export default function InsightsScreen() {
                                         <Text style={[styles.chevron, { color: config.accent }]}>{isExpanded ? "▲" : "▼"}</Text>
                                     </View>
                                     <Animated.View style={{
-                                        maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 600] }),
+                                        maxHeight: animation.interpolate({ inputRange: [0, 1], outputRange: [0, 9999] }),
                                         overflow: "hidden",
                                         opacity: animation,
+                                        width: "100%"
                                     }}>
                                         <View style={[styles.divider, { backgroundColor: config.border }]} />
 
@@ -1137,7 +1244,7 @@ export default function InsightsScreen() {
 
                                         {/* Recommended products related to the symptom, if available */ }
                                         {(item.details?.shoppingList ?? []).length > 0 && (
-                                            <View style={styles.shoppingBlock}>
+                                            <View style={[styles.shoppingBlock, { minWidth: 0 }]}>
                                                 <Text style={[styles.sectionLabel, { color: config.accent }]}>Recommended Products</Text>
                                                 {(item.details.shoppingList as string[]).map((product, idx) => (
                                                     <View key={idx} style={styles.productRow}>
@@ -1147,6 +1254,10 @@ export default function InsightsScreen() {
                                                 ))}
                                             </View>
                                         )}
+
+                                        {/* Medication recommendations */}
+                                        <MedicationBlock medication={item.details?.medication ?? null} accent={config.accent} />
+                                                
                                     </Animated.View>
                                 </View>
                             </Animated.View>
@@ -1198,7 +1309,7 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
 
-    // Style for the colored bar on the left side of the insight cards
+    // Style for the coloured bar on the left side of the insight cards
     leftBar: { 
         width: 4,
     },
@@ -1206,7 +1317,9 @@ const styles = StyleSheet.create({
     // Style for the inner content of the insight cards
     cardInner: { 
         flex: 1, 
-        padding: 14 
+        padding: 14,
+        minWidth: 0,
+        width: "100%",
     },
 
     // Style for the header of the insight cards, which contains the emoji, label, title, and chevron
@@ -1363,21 +1476,21 @@ const styles = StyleSheet.create({
     productRow: { 
         flexDirection: "row", 
         alignItems: "flex-start", 
-        gap: 6, 
-        marginBottom: 3 
+        width: "100%",
     },
 
     // Style for the bullet point 
     productDot: { 
-        fontSize: 8, 
-        marginTop: 5 
+        fontSize: 12, 
+        marginTop: 2 
     },
 
     // Style for the text of the recommended products
     productText: { 
         fontSize: 13, 
         flex: 1, 
-        lineHeight: 19 
+        lineHeight: 19,
+        flexShrink: 1, 
     },
 
     // Style for the description of the cycle phase in the phase insight cards
@@ -1399,5 +1512,13 @@ const styles = StyleSheet.create({
         fontSize: 13,
         lineHeight: 20,
         fontStyle: 'italic',
-    }
+    },
+
+    bullet: {
+        width: 14,
+        alignItems: "center",
+        justifyContent: "flex-start",
+    },
+
+
 });
