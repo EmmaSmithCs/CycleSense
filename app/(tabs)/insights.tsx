@@ -39,6 +39,7 @@ import { buildCycles, getCycleInfo } from '../utils/cyclePrediction';
 type SymptomEntry = {
     name: string; // Name of the symptom, e.g. "Cramps", "Headache"
     intensity?: number; // Optional intensity rating for the symptom, e.g. 1-5
+    headacheType?: string; // Optional type of headache for headache symptoms, e.g. "Tension", "Hormonal"
 }
 
 // Type for daily logs retrieved from the database
@@ -558,6 +559,7 @@ export default function InsightsScreen() {
                         phase: info.typicalCyclePhase ?? "Unknown phase",
                         shoppingList: Array.isArray(info.shoppingList) ? info.shoppingList : [],
                         medication: info.medication ?? null,
+                        headacheType: (sym as any).headacheType ?? null,
                     }
                 });
             });
@@ -846,7 +848,11 @@ export default function InsightsScreen() {
                             if (typeof sym.name === "string") nameStr = sym.name;
                             else if (typeof sym.name === "object" && sym.name?.name) nameStr = sym.name.name;
                         }
-                        return { name: nameStr, intensity: sym.intensity !== undefined ? Number(sym.intensity) : undefined };
+                        return { 
+                            name: nameStr, 
+                            intensity: sym.intensity !== undefined ? Number(sym.intensity) : undefined,
+                            ...(sym.headacheType ? { headacheType: sym.headacheType } : {}),
+                        };
                     });
                     const validBleeding = ["None", "Light", "Medium", "Heavy"];
                     const bleedingValue = validBleeding.includes(data.bleeding) ? data.bleeding : "None";
@@ -1224,6 +1230,36 @@ export default function InsightsScreen() {
                                                 <Text style={[styles.whyText, { color: c.textSecondary}]}>{item.details.why}</Text>
                                             </View>
                                         )}
+
+                                        {/* Headache type */}
+                                        {item.details?.headacheType && (
+                                        <View style={{
+                                            flexDirection: "row",
+                                            alignItems: "center",
+                                            gap: 6,
+                                            marginBottom: 8,
+                                            marginTop: 4,
+                                            backgroundColor: config.accent + "18",
+                                            borderRadius: 8,
+                                            paddingVertical: 6,
+                                            paddingHorizontal: 10,
+                                            alignSelf: "flex-start",
+                                        }}>
+                                            <Text style={{ fontSize: 13 }}>
+                                                {
+                                                    item.details.headacheType === "Tension"     ? "😤" :
+                                                    item.details.headacheType === "Hormonal"    ? "🌊" :
+                                                    item.details.headacheType === "Cluster"     ? "🔴" :
+                                                    item.details.headacheType === "Sinus"       ? "🤧" :
+                                                    item.details.headacheType === "Dehydration" ? "💧" :
+                                                    item.details.headacheType === "Eye strain"  ? "👁️" : "❓"
+                                                }
+                                            </Text>
+                                            <Text style={{ fontSize: 12, fontWeight: "700", color: config.accent }}>
+                                                {item.details.headacheType} headache
+                                            </Text>
+                                        </View>
+                                    )}
 
                                         {/* Typical cycle phase for the symptom, if available */ }
                                         {item.details?.phase && item.details.phase !== "Any" && (

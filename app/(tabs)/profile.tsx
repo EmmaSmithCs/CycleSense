@@ -253,8 +253,14 @@ export default function ProfileScreen() {
                 // For each log entry, create a table row in HTML format that includes the date, bleeding information, symptoms, and notes
                 const rows = logs.map((l: any) => {
                     const symptoms = (l.symptoms || [])
-                        .map ((s: any) => (typeof s === 'string' ? s : s.name))
-                        .join (', ') || '-';
+                        .map((s: any) => {
+                            if (typeof s === 'string') return s;
+                            let label = s.name || '';
+                            if (s.headacheType) label += ` (${s.headacheType})`;
+                            if (s.intensity !== undefined) label += ` [intensity: ${s.intensity}]`;
+                            return label;
+                        })
+                        .join(', ') || '-';
                     return `
                         <tr>
                             <td>${formatDate(new Date(l.date))}</td>

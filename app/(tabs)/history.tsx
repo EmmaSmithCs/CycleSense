@@ -34,6 +34,7 @@ const intensitySymptoms = ["Cramps", "Headache", "Migraine", "Back pain", "Tende
 type SymptomEntry = {
     name: string; // Name of the symptom (e.g., "Cramps", "Headache")
     intensity?: number; // Optional intensity level for symptoms that require it (1-5 scale)
+    headacheType?: string; // Optional type of headache for headache symptoms (e.g., "Tension", "Hormonal")
 }
 
 // Predefined categories of symptoms and options for logging, used to structure the symptom logging UI
@@ -153,7 +154,8 @@ export default function HistoryScreen() {
     const [selectedSymptom, setSelectedSymptom] = useState<string | null>(null);
     const [selectedIntensity, setSelectedIntensity] = useState<number>(3);
     const [allLogs, setAllLogs] = useState<{ id: string; bleeding: string; symptomCount: number }[]>([]);
-    
+    const [headacheType, setHeadacheType] = useState<string | null>(null);
+
     // State variables for bleeding level and symptoms, which are used when viewing or editing a specific log entry in the modal
     const [bleeding, setBleeding] = useState<"None" | "Light" | "Medium" | "Heavy">("None");
     const [symptoms, setSymptoms] = useState<string[]>([]);
@@ -274,10 +276,13 @@ export default function HistoryScreen() {
 
         // Combine symptoms with intensity and regular symptoms into a single array of symptom entries
         const finalSymptoms: SymptomEntry[] = [
-            ...symptomsWithIntensity, // Include symptoms that have intensity values as they are
-            ...symptoms // Include regular symptoms as entries with just the name
-            .filter(name => !intentsityNames.has(name)) // Filter out any regular symptoms that already have an intensity entry to avoid duplicates
-            .map(name => ({ name })), // Map remaining regular symptoms to SymptomEntry objects with just the name
+            ...symptomsWithIntensity.map(s => ({
+                ...s,
+                ...(s.name === "Headache" && headacheType ? { headacheType } : {}),
+            })),
+            ...symptoms
+                .filter(name => !intentsityNames.has(name))
+                .map(name => ({ name })),
         ];
 
         // Create the log data object to be saved
@@ -346,6 +351,7 @@ export default function HistoryScreen() {
         setSymptoms([]);
         setSymptomsWithIntensity([]);
         setNotes("");
+        setHeadacheType(null);
         
         // Fetch the log document for the specified date from Firestore
         const dateStr = format(date, 'yyyy-MM-dd');
@@ -367,7 +373,11 @@ export default function HistoryScreen() {
             // For each symptom in the log data, check if it has an intensity value
             (data.symptoms || []).forEach((s: any) => {
             if (s?.intensity !== undefined) {
-                withIntensity.push({ name: s.name, intensity: s.intensity }); // If the symptom has an intensity value, add it to the withIntensity array as a SymptomEntry object
+                withIntensity.push({ 
+                    name: s.name, 
+                    intensity: s.intensity,
+                    ...(s.headacheType ? { headacheType: s.headacheType } : {})
+                });
             } 
             });
 
@@ -607,17 +617,18 @@ export default function HistoryScreen() {
                                             {intensityEntry?.intensity !== undefined && (
                                                 <View style={{
                                                     marginLeft: 5,
-                                                    backgroundColor: "##ffffff40",
+                                                    backgroundColor: "rgba(255,255,255,0.25)",
                                                     borderWidth: 1,
                                                     borderColor: "#ffffff80",
-                                                    width: 18,
-                                                    height: 18,
-                                                    borderRadius: 9,
+                                                    borderRadius: 10,
                                                     alignItems: "center",
-                                                    justifyContent: "center"
-                                            }}>
-                                                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700", lineHeight: 12}}>
+                                                    justifyContent: "center",
+                                                    paddingHorizontal: 5,
+                                                    paddingVertical: 2,
+                                                }}>
+                                                    <Text style={{ color: "#fff", fontSize: 10, fontWeight: "700" }}>
                                                         {intensityEntry.intensity}
+                                                        {intensityEntry.headacheType ? ` · ${intensityEntry.headacheType}` : ""}
                                                     </Text>
                                                 </View>
                                             )}
@@ -661,51 +672,112 @@ export default function HistoryScreen() {
 
                             {/* Modal for selecting intensity level for symptoms that require intensity tracking */ }
                             {selectedSymptom && (
-                                <Modal 
-                                key ={selectedSymptom}
-                                visible={true} 
-                                animationType="fade" 
-                                transparent
-                                statusBarTranslucent
-                                onRequestClose={() => setSelectedSymptom(null)}
+                                <Modal
+                                    key={selectedSymptom}
+                                    visible={true}
+                                    animationType="fade"
+                                    transparent
+                                    statusBarTranslucent
+                                    onRequestClose={() => setSelectedSymptom(null)}
                                 >
-                                <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000000aa" }}>
-                                    <View style={{ backgroundColor: c.card, padding: 20, borderRadius: 12, width: 250 }}>
-                                    <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 10, color: c.text  }}>{selectedSymptom} Intensity</Text>
-                                    <Text style={{ fontSize: 14, marginBottom: 10, color: c.textSecondary }}>Current Intensity: {selectedIntensity}</Text>
+                                    <View style={{ flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "#000000aa" }}>
+                                        <View style={{ backgroundColor: c.card, padding: 20, borderRadius: 12, width: 300 }}>
 
-                                    <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
-                                        {[1, 2, 3, 4, 5].map((level) => ( // Render buttons for selecting intensity levels from 1 to 5
-                                        <TouchableOpacity
-                                            key={level}
-                                            onPress={() => setSelectedIntensity(level)}
-                                            style={{
-                                            width: 40, height: 40, borderRadius: 20,
-                                            backgroundColor: selectedIntensity === level ? c.primary : c.surface,
-                                            justifyContent: "center", alignItems: "center",
-                                            }}
-                                        >
-                                            <Text style={{ color: selectedIntensity === level ? "#fff" : c.text }}> {level}</Text>
-                                        </TouchableOpacity>
-                                        ))}
+                                            <Text style={{ fontWeight: "bold", fontSize: 16, marginBottom: 4, color: c.text }}>
+                                                {selectedSymptom}
+                                            </Text>
+
+                                            {/* Headache type picker */}
+                                            {selectedSymptom === "Headache" && (() => {
+                                                const headacheTypes: { label: string; icon: string; description: string }[] = [
+                                                    { label: "Any",         icon: "❓", description: "Not sure / general" },
+                                                    { label: "Tension",     icon: "😤", description: "Pressure across forehead" },
+                                                    { label: "Hormonal",    icon: "🌊", description: "Linked to your cycle" },
+                                                    { label: "Cluster",     icon: "🔴", description: "Intense, one side of head" },
+                                                    { label: "Sinus",       icon: "🤧", description: "Behind cheeks and nose" },
+                                                    { label: "Dehydration", icon: "💧", description: "After low fluid intake" },
+                                                    { label: "Eye strain",  icon: "👁️",  description: "From screens or reading" },
+                                                ];
+                                                return (
+                                                    <>
+                                                        <Text style={{ fontSize: 12, color: c.textSecondary, marginBottom: 10 }}>
+                                                            What type of headache? (optional)
+                                                        </Text>
+                                                        <View style={{ flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 16 }}>
+                                                            {headacheTypes.map(({ label, icon, description }) => {
+                                                                const isSelected = headacheType === label || (label === "Any" && !headacheType);
+                                                                return (
+                                                                    <TouchableOpacity
+                                                                        key={label}
+                                                                        onPress={() => setHeadacheType(label === "Any" ? null : label)}
+                                                                        style={{
+                                                                            flexDirection: "row",
+                                                                            alignItems: "center",
+                                                                            gap: 5,
+                                                                            paddingVertical: 6,
+                                                                            paddingHorizontal: 10,
+                                                                            borderRadius: 20,
+                                                                            backgroundColor: isSelected ? c.primary : c.surface,
+                                                                            borderWidth: isSelected ? 0 : 1,
+                                                                            borderColor: c.border,
+                                                                        }}
+                                                                    >
+                                                                        <Text style={{ fontSize: 14 }}>{icon}</Text>
+                                                                        <View>
+                                                                            <Text style={{ fontSize: 12, fontWeight: "700", color: isSelected ? "#fff" : c.text }}>
+                                                                                {label}
+                                                                            </Text>
+                                                                            <Text style={{ fontSize: 10, color: isSelected ? "#ffffffbb" : c.textMuted, lineHeight: 13 }}>
+                                                                                {description}
+                                                                            </Text>
+                                                                        </View>
+                                                                    </TouchableOpacity>
+                                                                );
+                                                            })}
+                                                        </View>
+                                                        <View style={{ height: 1, backgroundColor: c.border, marginBottom: 14, opacity: 0.4 }} />
+                                                    </>
+                                                );
+                                            })()}
+
+                                            <Text style={{ fontSize: 13, color: c.textSecondary, marginBottom: 10 }}>
+                                                Intensity: {selectedIntensity}
+                                            </Text>
+
+                                            <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 20 }}>
+                                                {[1, 2, 3, 4, 5].map((level) => (
+                                                    <TouchableOpacity
+                                                        key={level}
+                                                        onPress={() => setSelectedIntensity(level)}
+                                                        style={{
+                                                            width: 40, height: 40, borderRadius: 20,
+                                                            backgroundColor: selectedIntensity === level ? c.primary : c.surface,
+                                                            justifyContent: "center", alignItems: "center",
+                                                        }}
+                                                    >
+                                                        <Text style={{ color: selectedIntensity === level ? "#fff" : c.text }}>{level}</Text>
+                                                    </TouchableOpacity>
+                                                ))}
+                                            </View>
+
+                                            <Button
+                                                title="Save"
+                                                color={c.primary}
+                                                onPress={() => {
+                                                    setSymptomsWithIntensity(prev => {
+                                                        const filtered = prev.filter(s => s.name !== selectedSymptom);
+                                                        return [...filtered, {
+                                                            name: selectedSymptom!,
+                                                            intensity: selectedIntensity,
+                                                            ...(selectedSymptom === "Headache" && headacheType ? { headacheType } : {}),
+                                                        }];
+                                                    });
+                                                    setSelectedSymptom(null);
+                                                }}
+                                            />
+                                            <Button title="Cancel" onPress={() => { setSelectedSymptom(null); setHeadacheType(null); }} color={c.textMuted} />
+                                        </View>
                                     </View>
-
-                                    {/* Buttons for saving the selected intensity level for the symptom */ }
-                                    <Button
-                                        title="Save"
-                                        color={c.primary}
-                                        onPress={() => {
-                                        setSymptomsWithIntensity(prev => {
-                                            const filtered = prev.filter(s => s.name !== selectedSymptom);
-                                            return [...filtered, { name: selectedSymptom!, intensity: selectedIntensity }];
-                                        });
-                                        setSelectedSymptom(null);
-                                        }}
-                                    />
-                                    <Button title="Cancel" onPress={() => setSelectedSymptom(null)} color={c.textMuted} />
-
-                                    </View>
-                                </View>
                                 </Modal>
                             )}
                         </ScrollView>
