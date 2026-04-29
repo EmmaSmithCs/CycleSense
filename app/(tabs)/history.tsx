@@ -18,14 +18,17 @@
 import { useDateFormat } from '@/context/DateFormatContext';
 import { useTheme } from '@/context/ThemeContext';
 import { auth, db } from '@/firebase/config';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useFocusEffect } from '@react-navigation/native';
 import { differenceInCalendarDays, format, parseISO } from 'date-fns';
 import { collection, deleteDoc, doc, getDoc, getDocs } from 'firebase/firestore';
 import React, { useCallback, useState } from 'react';
-import { ActivityIndicator, Alert, Button, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Alert, Animated, Button, FlatList, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { Calendar } from 'react-native-calendars';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import Svg, { Line, Rect, Text as SvgText } from 'react-native-svg';
 import { saveDailyLog } from '../../firebase/dailyLogs';
+
 
 // List of symptoms that require intensity tracking
 const intensitySymptoms = ["Cramps", "Headache", "Migraine", "Back pain", "Tender breasts", "Acne", "Nausea", "Joint pain", "Ovulation pain", "Insomnia", "Bloating", "Gas", "Diarrhoea", "Constipation"];
@@ -103,7 +106,7 @@ const symptomCategories = [
         // Category for supplements
         key: "supplements",
         title: "Supplements",
-        options: ["Vitamins", "Magnesium", "Zinc", "Iron", "Omega 3", "Probiotics", "Adaptogens", "Protein powder", "Fiber supplements"],
+        options: ["Vitamins", "Magnesium", "Zinc", "Iron", "Omega 3", "Probiotics", "Adaptogens", "Protein powder", "Fibre supplements"],
     }
 ];
 
@@ -132,6 +135,31 @@ const BLEEDING_LABELS: Record<string, string> = {
     None: "o",
 };
 
+// Builds the cycle history from a list of daily logs
+function buildCycleHistory(logs: { id: string; bleeding: string }[]) {
+    
+    // Filter the logs to only include those with bleeding, and sort them by date to ensure they are in chronological order
+    const bleedingDays = logs
+        .filter(l => l.bleeding !== "None")
+        .sort((a, b) => a.id.localeCompare(b.id));
+
+    // Group consecutive bleeding days into periods by checking the gap between each bleeding day and the previous one. If the gap is greater than 2 days, it is considered the start of a new period.
+    const periodStarts: string[] = [];
+    bleedingDays.forEach((log, i) => {
+        const prev = bleedingDays[i - 1];
+        const gap = prev ? differenceInCalendarDays(parseISO(log.id), parseISO(prev.id)) : 999;
+        if (gap > 2) periodStarts.push(log.id);
+    });
+
+    // Calculate the cycle history by determining the length of each cycle based on the period start dates. The cycle history is an array of objects, each containing the start date of the period and the length of the cycle in days (calculated as the difference between consecutive period start dates).
+    const cycles: { startDate: string; length: number }[] = [];
+    for (let i = 1; i < periodStarts.length; i++) {
+        const length = differenceInCalendarDays(parseISO(periodStarts[i]), parseISO(periodStarts[i - 1]));
+        cycles.push({ startDate: periodStarts[i - 1], length });
+    }
+    return cycles;
+}
+
 // The HistoryScreen component 
 export default function HistoryScreen() {
 
@@ -155,6 +183,8 @@ export default function HistoryScreen() {
     const [selectedIntensity, setSelectedIntensity] = useState<number>(3);
     const [allLogs, setAllLogs] = useState<{ id: string; bleeding: string; symptomCount: number }[]>([]);
     const [headacheType, setHeadacheType] = useState<string | null>(null);
+    const [cycleHistoryOpen, setCycleHistoryOpen] = useState(false);
+    const cycleHistoryAnimation = React.useRef(new Animated.Value(0)).current;
 
     // State variables for bleeding level and symptoms, which are used when viewing or editing a specific log entry in the modal
     const [bleeding, setBleeding] = useState<"None" | "Light" | "Medium" | "Heavy">("None");
@@ -210,10 +240,21 @@ export default function HistoryScreen() {
         return BLEEDING_COLORS[bleeding] || BLEEDING_COLORS["None"];
     };
 
+    // Toggle the cycle history view by animating the height of the cycle history container
+    const toggleCycleHistory = () => {
+        const toValue = cycleHistoryOpen ? 0 : 1;
+        Animated.timing(cycleHistoryAnimation, { toValue, duration: 250, useNativeDriver: false }).start();
+        setCycleHistoryOpen(!cycleHistoryOpen);
+    };
+
     // Load marked dates and logs from Firestore, and update the state with the marked dates for the calendar and the list of all logs
     const loadMarkedDates = async () => {
         const user = auth.currentUser;
         if (!user) return;
+
+        // Get dot preference from AsyncStorage to determine whether to show dots for "None" bleeding level
+        const savedShowNoneDotsRaw = await AsyncStorage.getItem("showNoneDots");
+        const showNoneDots = savedShowNoneDotsRaw !== null ? JSON.parse(savedShowNoneDotsRaw) : true;
 
         // Fetch all daily logs for the user from Firestore
         const logsRef = collection(db, 'users', user.uid, 'dailyLogs');
@@ -225,13 +266,18 @@ export default function HistoryScreen() {
 
         // Iterate through each log document and populate the marked object with the bleeding level and corresponding dot color for the calendar, as well as adding the log information to the logs array
         snapshot.docs.forEach((doc) => {
-            marked[doc.id] = {
-                marked: true,
-                dotColor: getDotColor(doc.data().bleeding || "None"),
-            };
+            const bleeding = doc.data().bleeding || "None";
+            const shouldShowDot = bleeding !== "None" || showNoneDots;
+
+            if (shouldShowDot) {
+                marked[doc.id] = {
+                    marked: true,
+                    dotColor: getDotColor(bleeding),
+                };
+            }
             logs.push({
                 id: doc.id,
-                bleeding: doc.data().bleeding || "None",
+                bleeding,
                 symptomCount: (doc.data().symptoms || []).length,
             });
         });
@@ -429,6 +475,13 @@ export default function HistoryScreen() {
             </View>
         );
     }
+    
+    // Build the cycle history from the logs to display in the cycle history section of the UI, and calculate the average cycle length to provide insights into the user's cycle patterns
+    const cycleHistory = buildCycleHistory(allLogs);
+    const chartCycles = cycleHistory.slice(-5);
+    const avgCycleLen = cycleHistory.length
+        ? Math.round(cycleHistory.reduce((s, c) => s + c.length, 0) / cycleHistory.length)
+        : null;
 
     // Render the main content of the History screen
     return (
@@ -494,6 +547,134 @@ export default function HistoryScreen() {
                     </View>
                 ))}
             </View>
+
+            {/* Cycle history section */}
+            {cycleHistory.length > 0 && (
+                <View style={{ marginTop: 14 }}>
+                    <TouchableOpacity
+                        onPress={toggleCycleHistory}
+                        activeOpacity={0.8}
+                        style={[styles.cycleHistoryHeader, { backgroundColor: c.card, borderColor: c.border }]}
+                    >
+                        <View style={{ flex: 1 }}>
+                            <Text style={{ fontSize: 15, fontWeight: "700", color: c.text }}>Cycle History</Text>
+                            <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 2 }}>
+                                {cycleHistory.length} cycle{cycleHistory.length !== 1 ? "s" : ""} recorded
+                                {avgCycleLen ? `  ·  avg ${avgCycleLen} days` : ""}
+                            </Text>
+                        </View>
+                        <Text style={{ color: c.primary, fontSize: 13, fontWeight: "600" }}>
+                            {cycleHistoryOpen ? "▲" : "▼"}
+                        </Text>
+                    </TouchableOpacity>
+
+                    <Animated.View style={{
+                        maxHeight: cycleHistoryAnimation.interpolate({ inputRange: [0, 1], outputRange: [0, 9999] }),
+                        opacity: cycleHistoryAnimation,
+                        overflow: "hidden",
+                    }}>
+                        <View style={[styles.cycleBodyHistory, { backgroundColor: c.card, borderColor: c.border }]}>
+
+                            {/* Bar chart — last 5 cycles */}
+                            {chartCycles.length > 0 && (() => {
+                                const chartW = 280;
+                                const chartH = 100;
+                                const barW = 36;
+                                const maxLen = Math.max(...chartCycles.map(c => c.length), 1);
+                                const gap = (chartW - barW * chartCycles.length) / (chartCycles.length + 1);
+                                const topPad = 16;
+
+                                return (
+                                    <View style={{ alignItems: "center", marginBottom: 18 }}>
+                                        <Text style={{ fontSize: 11, fontWeight: "700", color: c.primary, letterSpacing: 0.8, marginBottom: 10, alignSelf: "flex-start" }}>
+                                            LAST {chartCycles.length} CYCLES
+                                        </Text>
+                                        <Svg width={chartW} height={chartH + 30 + topPad}>
+                                            {/* Average line */}
+                                            {avgCycleLen && (() => {
+                                                const avgY = chartH - (avgCycleLen / maxLen) * chartH + topPad;
+                                                return (
+                                                    <Line
+                                                        x1={gap / 2} y1={avgY}
+                                                        x2={chartW - gap / 2} y2={avgY}
+                                                        stroke={c.primary} strokeWidth={1}
+                                                        strokeDasharray="4,3" opacity={0.5}
+                                                    />
+                                                );
+                                            })()}
+                                            {chartCycles.map((cycle, i) => {
+                                                const barH = (cycle.length / maxLen) * chartH;
+                                                const x = gap + i * (barW + gap);
+                                                const y = chartH - barH + topPad;
+                                                const isLast = i === chartCycles.length - 1;
+                                                return (
+                                                    <React.Fragment key={i}>
+                                                        {/* Background bar */}
+                                                        <Rect x={x} y={topPad} width={barW} height={chartH} rx={6}
+                                                            fill={c.primary} opacity={0.12} />
+                                                        {/* Filled bar */}
+                                                        <Rect x={x} y={y} width={barW} height={barH} rx={6}
+                                                            fill={c.primary} opacity={isLast ? 1 : 0.6} />
+                                                        {/* Length label */}
+                                                        <SvgText x={x + barW / 2} y={y - 4} fontSize={10}
+                                                            fill={c.primary} textAnchor="middle" fontWeight="700">
+                                                            {cycle.length}d
+                                                        </SvgText>
+                                                        {/* Date label */}
+                                                        <SvgText x={x + barW / 2} y={chartH + 14 + topPad} fontSize={8}
+                                                            fill={c.primary + "aa"} textAnchor="middle">
+                                                            {format(parseISO(cycle.startDate), 'MMM d')}
+                                                        </SvgText>
+                                                    </React.Fragment>
+                                                );
+                                            })}
+                                        </Svg>
+                                        <Text style={{ fontSize: 10, color: c.textMuted, fontStyle: "italic", marginTop: 2 }}>
+                                            Dashed line = your average · Most recent cycle highlighted
+                                        </Text>
+                                    </View>
+                                );
+                            })()}
+
+                            {/* Divider */}
+                            <View style={{ height: 1, backgroundColor: c.border, opacity: 0.5, marginBottom: 14 }} />
+
+                            {/* Full cycle list */}
+                            <Text style={{ fontSize: 11, fontWeight: "700", color: c.primary, letterSpacing: 0.8, marginBottom: 10 }}>
+                                ALL CYCLES
+                            </Text>
+                            {[...cycleHistory].reverse().map((cycle, i) => {
+                                const isShort = cycle.length < 24;
+                                const isLong = cycle.length > 35;
+                                const tag = isShort ? "Short" : isLong ? "Long" : null;
+                                const tagColor = isShort ? "#e67e22" : "#c0392b";
+                                return (
+                                    <View key={i} style={[styles.cycleRow, { borderBottomColor: c.border }]}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={{ fontSize: 14, fontWeight: "600", color: c.text }}>
+                                                {format(parseISO(cycle.startDate), 'dd MMM yyyy')}
+                                            </Text>
+                                            <Text style={{ fontSize: 12, color: c.textMuted, marginTop: 1 }}>
+                                                Cycle started
+                                            </Text>
+                                        </View>
+                                        <View style={{ alignItems: "flex-end", gap: 4 }}>
+                                            <Text style={{ fontSize: 16, fontWeight: "700", color: c.primary }}>
+                                                {cycle.length} days
+                                            </Text>
+                                            {tag && (
+                                                <View style={{ backgroundColor: tagColor + "22", borderRadius: 10, paddingHorizontal: 8, paddingVertical: 2 }}>
+                                                    <Text style={{ fontSize: 10, fontWeight: "700", color: tagColor }}>{tag}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+                                );
+                            })}
+                        </View>
+                    </Animated.View>
+                </View>
+            )}
 
             {/* Recent logs section, which displays a list of the user's most recent log entries with key information about each log, and allows the user to tap on a log to view or edit it in the modal */ }
             {recentLogs.length > 0 && (
@@ -826,7 +1007,7 @@ const styles = StyleSheet.create({
         marginBottom: 10,
     },
 
-    // Style for centering content
+    // Style for centring content
     centered: {
         flex: 1,
         justifyContent: "center",
@@ -931,7 +1112,7 @@ const styles = StyleSheet.create({
         gap: 5,
     },
 
-    // Style for the colored dots in the calendar legend that indicate different bleeding levels
+    // Style for the coloured dots in the calendar legend that indicate different bleeding levels
     legendDot: {
         width: 8,
         height: 8,
@@ -1011,4 +1192,34 @@ const styles = StyleSheet.create({
         padding: 20,
         paddingBottom: 40,
     },
+
+    // Style for the header in the cycle history section
+    cycleHistoryHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        borderRadius: 14,
+        borderWidth: 1,
+        paddingHorizontal: 16,
+        paddingVertical: 14,
+    },
+
+    // Style for the body of the cycle history
+    cycleBodyHistory: {
+        borderRadius: 14,
+        borderWidth: 1,
+        borderTopWidth: 0,
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: 0,
+        padding: 16,
+        marginTop: -4,
+    },
+
+    // Style for the row of the cycle history
+    cycleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        paddingVertical: 10,
+        borderBottomWidth: 1,
+    }
+
 });

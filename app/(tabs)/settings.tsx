@@ -87,6 +87,7 @@ export default function SettingsScreen() {
     const [prefsSaving, setPrefsSaving] = useState(false);
     const [prefsSaved, setPrefsSaved] = useState(false);
     const [showDisclaimer, setShowDisclaimer] = useState(false);
+    const [showNoneDots, setShowNoneDots] = useState(true);
 
     // State variables for privacy settings
     const [appLockEnabled, setAppLockEnabled] = useState(false);
@@ -106,7 +107,7 @@ export default function SettingsScreen() {
     // Load all settings on mount, including notification preferences, privacy settings, and user preferences from Firestore
     useEffect(() => {
         (async () => {
-            // Load all setttings from AsyncStorage in parallel
+            // Load all settings from AsyncStorage in parallel
             const savedNotifications = await AsyncStorage.getItem(NOTIF_KEYS.notifications);
             const savedPeriodID = await AsyncStorage.getItem(NOTIF_KEYS.period);
             const savedDailyID = await AsyncStorage.getItem(NOTIF_KEYS.daily);
@@ -116,6 +117,7 @@ export default function SettingsScreen() {
             const savedAppLock = await AsyncStorage.getItem(PRIVACY_KEYS.appLock);
             const savedHideInSwitcher = await AsyncStorage.getItem(PRIVACY_KEYS.hideInSwitcher);
             const savedIncognitoLogging = await AsyncStorage.getItem(PRIVACY_KEYS.incognitoLogging);
+            const savedNoneDots = await AsyncStorage.getItem('showNoneDots');
 
             // Apply loaded settings to state
             if (savedNotifications !== null) setNotificationsEnabled(JSON.parse(savedNotifications));
@@ -128,6 +130,7 @@ export default function SettingsScreen() {
             if (savedHideInSwitcher) setHideInSwitcherEnabled(JSON.parse(savedHideInSwitcher));
             if (savedIncognitoLogging) setIncognitoLoggingEnabled(JSON.parse(savedIncognitoLogging));
 
+            
             // Load user preferences from Firestore
             const user = auth.currentUser;
             if (!user) return;
@@ -142,6 +145,11 @@ export default function SettingsScreen() {
             }
         })()
     }, []);
+
+    const handleToggleNoneDots = async (value: boolean) => {
+        setShowNoneDots(value);
+        await AsyncStorage.setItem("showNoneDots", JSON.stringify(value));
+    };
 
     // Handler for toggling app lock, with biometric authentication if enabling
     const handleToggleAppLock = async (value: boolean) => {
@@ -402,7 +410,7 @@ export default function SettingsScreen() {
                                 <Text style={styles.themeEmoji}>{t.emoji}</Text>
                                 <Text style={[styles.themeLabel, { color: t.colors.text }]}>{t.label}</Text>
 
-                                {/* Active theme gets a colored border */ }
+                                {/* Active theme gets a coloured border */ }
                                 <View
                                     style={[
                                         styles.themeSwatch,
@@ -427,7 +435,7 @@ export default function SettingsScreen() {
                 <View style={[styles.card, { backgroundColor: c.card, borderColor: c.border }]}>
                     <View style={styles.preferenceRow}>
 
-                        {/* Avergae cycle length preference */}
+                        {/* Average cycle length preference */}
                         <View style={styles.preferenceLabelWrap}>
                             <Text style={[styles.preferenceLabel, {color: c.text}]}>Average Cycle Length</Text>
                             <Text style={[styles.preferenceHint, {color: c.textMuted}]}>Used to predict your next period (21-45 days)</Text>
@@ -508,6 +516,24 @@ export default function SettingsScreen() {
                         <Switch 
                             value={gamificationEnabled}
                             onValueChange={setGamificationEnabled}
+                            trackColor={{ false: c.border, true: c.primary }}
+                            thumbColor={c.surface}
+                        />
+                    </View>
+
+                    <View style={[styles.divider, {backgroundColor: c.border}]} />
+
+                    {/* None dots preference */}
+                    <View style={[styles.preferenceRow, {backgroundColor: 'transparent'}]}>
+                        <View style={styles.preferenceLabelWrap}>
+                            <Text style={[styles.preferenceLabel, {color: c.text}]}>Show "No Bleeding" Dots</Text>
+                            <Text style={[styles.preferenceHint, {color: c.textMuted}]}>
+                                Show blue dots on the calendar for days where "none" bleeding was logged, or hide them for a cleaner look
+                            </Text>
+                        </View>
+                        <Switch
+                            value={showNoneDots}
+                            onValueChange={handleToggleNoneDots}
                             trackColor={{ false: c.border, true: c.primary }}
                             thumbColor={c.surface}
                         />
@@ -697,7 +723,7 @@ export default function SettingsScreen() {
                     {/* Note about data privacy and security practices */ }
                     <View style={[styles.privacyNote, {backgroundColor: c.surface, borderColor: c.border}]}>
                         <Text style={[styles.privacyNoteText, {color: c.textMuted}]}>
-                            Your data is stored privately in your acocunt and is never shared or sold.
+                            Your data is stored privately in your account and is never shared or sold.
                         </Text>
                     </View>
                 </View>
@@ -715,9 +741,9 @@ export default function SettingsScreen() {
                             <Text style={{ fontWeight: '700', color: c.text }}>
                                 CycleSense is not a medical device.{'\n\n'}
                             </Text>
-                                This app is desgined to help you track your menstrual cycle and identify period
+                                This app is designed to help you track your menstrual cycle and identify period
                                 patterns over time. It does not provide medical diagnoses, adn predictions may
-                                not be accraute for everyone.{'\n\n'}
+                                not be accurate for everyone.{'\n\n'}
                                 Do not use this app as a method of contraception or as a substitute for professional
                                 medical advice. If you have concerns about your health, please consult a healthcare provider.
                         </Text>
@@ -846,7 +872,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
 
-    // Style for the colored swatch that appears on active theme options, showing the primary color of the theme
+    // Style for the coloured swatch that appears on active theme options, showing the primary color of the theme
     themeSwatch: {
         width: 28,
         height: 6,

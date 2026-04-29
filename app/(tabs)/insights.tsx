@@ -244,10 +244,11 @@ function IntensityChart({ data, accent, progress }: {
 }
 
 // CycleDayHeatmap component to visualize the frequency of symptoms by cycle day, with circles representing each cycle day and their opacity indicating how often symptoms were tracked on that day across the user's logs
-function CycleDayHeatmap({ dayCounts, avgLength, accent }: {
+function CycleDayHeatmap({ dayCounts, avgLength, accent, currentCycleDay }: {
     dayCounts: Record<number, number>; // An object where keys are cycle days (1, 2, 3, ...) and values are the count of how many times symptoms were tracked on that day across the user's logs
     avgLength: number; // The average length of the user's menstrual cycle, used to determine how many cycle days to display in the heatmap
     accent: string; // Accent color for the heatmap circles, used to indicate frequency of symptoms on each cycle day
+    currentCycleDay?: number; // The current day of the user's menstrual cycle, used to highlight the active day
 }) {
     const totalDays = Math.min(avgLength, 35);
     const bubbleSize = 22;
@@ -268,6 +269,8 @@ function CycleDayHeatmap({ dayCounts, avgLength, accent }: {
                     const day = i + 1;
                     const count = dayCounts[day] ?? 0;
                     const opacity = count === 0 ? 0.12 : 0.2 + (count / maxCount) * 0.8;
+                    const isToday = day === currentCycleDay;
+
                     {/* Each circle represents a cycle day, with the day number displayed in the center. The background color of the circle is determined by the accent color, and the opacity indicates how frequently symptoms were tracked on that day (darker means more frequent). */ }
                     return (
                         <View
@@ -276,14 +279,29 @@ function CycleDayHeatmap({ dayCounts, avgLength, accent }: {
                                 width: bubbleSize,
                                 height: bubbleSize,
                                 borderRadius: bubbleSize / 2,
-                                backgroundColor: accent,
-                                opacity,
+                                borderWidth: isToday ? 2 : 0,
+                                borderColor: isToday ? accent + 'aa' : 'transparent',
                                 justifyContent: 'center',
                                 alignItems: 'center',
+                                transform: [{ scale: isToday ? 1.15 : 1 }],
                             }}
                         >
-                            <Text style={{ fontSize: 7, color: '#fff', fontWeight: '700' }}>{day}</Text>
+                            <View
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    borderRadius: bubbleSize / 2,
+                                    backgroundColor: accent,
+                                    opacity,
+                                    justifyContent: 'center',
+                                    alignItems: 'center',
+                                }}
+                            >
+                                <Text style={{ fontSize: 7, color: '#fff', fontWeight: '700' }}>{day}</Text>
+                            </View>
                         </View>
+
+                        
                     );
                 })}
             </View>
@@ -298,6 +316,10 @@ function CycleDayHeatmap({ dayCounts, avgLength, accent }: {
                     Darker = appeared more often on that day
                 </Text>
             </View>
+            {/* Today Label */}
+                <Text style={{ fontSize: 9, color: accent + 'aa', fontStyle: 'italic', marginTop: 4 }}>
+                    Today is cycle day {currentCycleDay} and is highlighted with a border 
+                </Text>
         </View>
     );
 }
@@ -883,6 +905,8 @@ export default function InsightsScreen() {
     }
 
     // Render the insights page
+    const _cycleInfo = getCycleInfo(convertToCycleLogs(logs));
+    const cycleDay = _cycleInfo?.cycleDay;
     return (
         <View style={{ flex: 1, paddingTop: 50, backgroundColor: c.background }}>
 
@@ -1144,7 +1168,7 @@ export default function InsightsScreen() {
                                             <View style={[styles.divider, { backgroundColor: config.border }]} />
 
                                             {/* Heatmap */}
-                                            <CycleDayHeatmap dayCounts={dayCounts} avgLength={avgLen} accent={config.accent} />
+                                            <CycleDayHeatmap dayCounts={dayCounts} avgLength={avgLen} accent={config.accent} currentCycleDay={cycleDay ?? undefined} />
 
                                             {/* Description of the prediction insight */ }
                                             {item.details?.description && (
