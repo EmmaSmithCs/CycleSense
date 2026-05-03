@@ -1,50 +1,66 @@
-# Welcome to your Expo app 👋
+# CycleSense - Emma Smith Final Year Project
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+CycleSense is a period tracking app built with React Native and Expo, submitted as a my Final Year Project as Queen Mary University of London.
 
-## Get started
+---
 
-1. Install dependencies
+## How to Run the App
 
+The app runs via **Expo Go** and doesn't have a standalone executable. Deployment to iOS/Android was not required for this project. A working Expo Go demo was agreed with muy supervisor as sufficient.
+
+### Prerequisites
+
+- [Node.js](https://nodejs.org/) installed on your machine
+- The **Expo Go** app installed on your phone:
+  - [iOS – App Store](https://apps.apple.com/app/expo-go/id982107779)
+  - [Android – Google Play](https://play.google.com/store/apps/details?id=host.exp.exponent)
+
+### Steps
+ 
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/EmmaSmithCs/CycleSense.git
+   cd CycleSense
+   ```
+ 
+2. Install dependencies:
    ```bash
    npm install
    ```
-
-2. Start the app
-
+ 
+3. Start the app:
    ```bash
    npx expo start
    ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+ 
+4. A QR code will appear in the terminal. Scan it with:
+   - The **Expo Go app** on Android
+   - The **Camera app** on iOS
+The app should load on your phone automatically.
+ 
+---
+ 
+## Notes
+ 
+- All API keys and Firebase configuration are hardcoded in the source code for the purposes of this university project.
+- No `.env` file or additional configuration is needed to run the app.
+- Do **not** run `npm run reset-project` — this will overwrite the app code with a blank template.
+---
+ 
+## Project Structure
+ 
+The main app code is inside the `app/` directory, which uses Expo's file-based routing system.
+ 
+---
+ 
+## Dependencies
+ 
+Key libraries used in this project include:
+ 
+- `expo-router` – file-based navigation
+- `firebase` – backend and data storage
+- `react-native-calendars` – calendar UI
+- `expo-notifications` – push notifications
+- `expo-local-authentication` – biometric authentication
+- `react-native-reanimated` – animations
+Full dependency list can be found in `package.json`.
