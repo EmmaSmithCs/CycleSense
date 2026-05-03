@@ -306,7 +306,7 @@ export default function Onboarding() {
                         </TouchableOpacity>
 
                         {/* A hint to guide the user */ }
-                        <Text style={styles.stepperHint}>If you can\'t remember, just make your best guess!</Text>
+                        <Text style={styles.stepperHint}>If you can't remember, just make your best guess!</Text>
                         
                         {/* Show the date picker for the last period date when the user presses the button, and update the lastPeriodDate state when a date is selected */ }
                         {showLastPeriodPicker && (
@@ -348,9 +348,9 @@ export default function Onboarding() {
                                 CycleSense is not a medical device
                             </Text>
                             <Text style={styles.disclaimerText}>
-                                This app is desgined to help you track your menstrual cycle and identify period
-                                patterns over time. It does not provide medical diagnoses, adn predictions may
-                                not be accraute for everyone.{'\n\n'}
+                                This app is designed to help you track your menstrual cycle and identify period
+                                patterns over time. It does not provide medical diagnoses, and predictions may
+                                not be accurate for everyone.{'\n\n'}
                                 Do not use this app as a method of contraception or as a substitute for professional
                                 medical advice. If you have concerns about your health, please consult a healthcare provider.
                             </Text>
