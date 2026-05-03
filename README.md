@@ -1,12 +1,12 @@
 # CycleSense - Emma Smith Final Year Project
 
-CycleSense is a period tracking app built with React Native and Expo, submitted as a my Final Year Project as Queen Mary University of London.
+CycleSense is a period tracking app built with React Native and Expo, submitted as my Final Year Project as Queen Mary University of London.
 
 ---
 
 ## How to Run the App
 
-The app runs via **Expo Go** and doesn't have a standalone executable. Deployment to iOS/Android was not required for this project. A working Expo Go demo was agreed with muy supervisor as sufficient.
+The app runs via **Expo Go** and doesn't have a standalone executable. Deployment to iOS/Android was not required for this project. A working Expo Go demo was agreed with my supervisor as sufficient.
 
 ### Prerequisites
 
